@@ -137,11 +137,19 @@ export const useGameStore = create<GameStore>((set, get) => {
   /** 鳴き応答フェーズのCPU処理 */
   async function processCpuCallResponse() {
     const state = get().gameState;
-    if (!state || state.phase !== 'calling') {
+    if (!state) return;
+
+    if (state.phase !== 'calling') {
       // callingフェーズでなければ次のツモへ
-      const gs = get().gameState;
-      if (gs && gs.phase === 'tsumo') {
-        processCpuTurn();
+      if (state.phase === 'tsumo') {
+        const humanIdx = get().humanPlayerIndex;
+        if (state.currentPlayer === humanIdx) {
+          // 人間の番 → ツモ処理
+          const afterTsumo = processTsumo(state);
+          set({ gameState: afterTsumo });
+        } else {
+          processCpuTurn();
+        }
       }
       return;
     }
@@ -267,11 +275,15 @@ export const useGameStore = create<GameStore>((set, get) => {
         isFirstTurn: false,
       },
     };
-    set({ gameState: newState });
 
     if (nextIdx !== humanIdx) {
+      set({ gameState: newState });
       await delay(200);
       processCpuTurn();
+    } else {
+      // 人間の番 → ツモ処理
+      const afterTsumo = processTsumo(newState);
+      set({ gameState: afterTsumo });
     }
   }
 
