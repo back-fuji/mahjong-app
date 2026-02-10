@@ -63,22 +63,41 @@ export const TileSVG: React.FC<TileSVGProps> = ({
   const suit = getSuit(tileId);
   const num = tileNumber(tileId);
 
+  // 選択・クリック可能状態のスタイル
+  const isClickable = !!onClick;
+  const glowFilter = selected ? 'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f59e0b)' : undefined;
+
   return (
     <svg
       width={svgW}
       height={svgH}
       viewBox={`0 0 ${width} ${height}`}
-      className={`${className} ${onClick ? 'cursor-pointer' : ''} ${selected ? 'translate-y-[-8px]' : ''} ${dimmed ? 'opacity-40' : ''}`}
+      className={`${className} ${isClickable ? 'cursor-pointer hover:brightness-110' : ''}`}
       onClick={onClick}
       style={{
-        transition: 'transform 0.1s',
-        transform: `${sideways ? 'rotate(90deg) ' : ''}${selected ? 'translateY(-8px)' : ''}`,
-        filter: dimmed ? 'brightness(0.6)' : undefined,
+        transition: 'transform 0.15s ease-out, filter 0.15s ease-out',
+        transform: `${sideways ? 'rotate(90deg) ' : ''}${selected ? 'translateY(-12px) scale(1.05)' : ''}`,
+        filter: dimmed ? 'brightness(0.6)' : glowFilter,
       }}
     >
+      {/* 選択時のハイライト背景 */}
+      {selected && (
+        <rect x="-2" y="-2" width={width + 4} height={height + 4} rx="5"
+          fill="none" stroke="#fbbf24" strokeWidth="3" />
+      )}
+
       {/* 牌の背景 */}
       <rect x="1" y="1" width={width - 2} height={height - 2} rx="3"
-        fill="#f8f6f0" stroke="#888" strokeWidth="1" />
+        fill={selected ? '#fffbeb' : '#f8f6f0'} 
+        stroke={selected ? '#f59e0b' : '#888'} 
+        strokeWidth={selected ? 2 : 1} 
+      />
+
+      {/* クリック可能な牌の微妙なハイライト */}
+      {isClickable && !selected && (
+        <rect x="2" y="2" width={width - 4} height={height - 4} rx="2"
+          fill="none" stroke="#4ade80" strokeWidth="1" strokeDasharray="4 2" opacity="0.5" />
+      )}
 
       {/* 牌面 */}
       {suit === SuitType.Jihai ? (

@@ -7,12 +7,14 @@ import { MeldType } from '../core/types/meld.ts';
 import {
   initGame, processTsumo, processDiscard, processRiichi,
   processTsumoAgari, processRon, processPon, processChi,
-  processAnKan, processShouMinKan,
+  processAnKan, processShouMinKan, processMinKan,
   checkTsumoAgari, canRiichi, canAnKan, canShouMinKan,
+  canKyuushuKyuhai, processKyuushuKyuhai,
+  checkSuuchariichi, checkSuukaikan,
+  processAbortiveDraw,
   advanceRound,
 } from '../core/state/game-engine.ts';
 import { toCount34 } from '../core/tile/tile-utils.ts';
-import { checkAgari } from '../core/agari/agari.ts';
 import { chooseDiscard, shouldCallPon, shouldCallChi, shouldRiichi, shouldTsumoAgari } from '../ai/strategy/strategy.ts';
 
 interface GameStore {
@@ -34,6 +36,7 @@ interface GameStore {
   callChi: (option: CallOption) => void;
   callKan: (tileId?: TileId) => void;
   skipCall: () => void;
+  declareKyuushu: () => void;
   nextRound: () => void;
   backToMenu: () => void;
 
@@ -53,6 +56,7 @@ export interface AvailableActions {
   canKan: boolean;
   kanTiles: TileId[];
   canSkip: boolean;
+  canKyuushu: boolean;
 }
 
 function delay(ms: number): Promise<void> {
@@ -67,6 +71,12 @@ export const useGameStore = create<GameStore>((set, get) => {
     const state = get().gameState;
     if (!state) return;
     const humanIdx = get().humanPlayerIndex;
+
+    // discard フェーズで CPU の番（ポン/チー後、暗槓後など）
+    if (state.phase === 'discard' && state.currentPlayer !== humanIdx) {
+      await processCpuDiscard(state);
+      return;
+    }
 
     // ツモフェーズ
     if (state.phase === 'tsumo' && state.currentPlayer !== humanIdx) {
@@ -89,14 +99,26 @@ export const useGameStore = create<GameStore>((set, get) => {
         }
       }
 
+      // 九種九牌チェック（CPU は常に宣言する）
+      if (canKyuushuKyuhai(newState, newState.currentPlayer)) {
+        newState = processKyuushuKyuhai(newState);
+        set({ gameState: newState });
+        return;
+      }
+
       // 暗槓チェック
       const ankans = canAnKan(newState, newState.currentPlayer);
       if (ankans.length > 0 && !cpuPlayer.isRiichi) {
         newState = processAnKan(newState, ankans[0]);
+        if (checkSuukaikan(newState)) {
+          newState = processAbortiveDraw(newState, 'suukaikan');
+          set({ gameState: newState });
+          return;
+        }
         set({ gameState: newState });
         await delay(300);
-        // 槓後のツモ処理は再帰
-        processCpuTurn();
+        // 槓後は discard フェーズ → CPU打牌
+        await processCpuDiscard(newState);
         return;
       }
 
@@ -134,6 +156,23 @@ export const useGameStore = create<GameStore>((set, get) => {
     }
   }
 
+  /** CPU の打牌処理（ポン/チー後など、discard フェーズから呼ばれる） */
+  async function processCpuDiscard(currentState: GameState) {
+    const state = currentState;
+    const cpuIdx = state.currentPlayer;
+    const cpuPlayer = state.players[cpuIdx];
+
+    const discardTile = cpuPlayer.isRiichi
+      ? (cpuPlayer.hand.tsumo ?? cpuPlayer.hand.closed[cpuPlayer.hand.closed.length - 1])
+      : chooseDiscard(cpuPlayer.hand.closed, cpuPlayer.hand.tsumo);
+
+    const newState = processDiscard(state, discardTile);
+    set({ gameState: newState });
+
+    await delay(200);
+    processCpuCallResponse();
+  }
+
   /** 鳴き応答フェーズのCPU処理 */
   async function processCpuCallResponse() {
     const state = get().gameState;
@@ -165,29 +204,25 @@ export const useGameStore = create<GameStore>((set, get) => {
     // 人間プレイヤーに鳴きオプションがあるか
     const humanOpts = callOptions.get(humanIdx);
     if (humanOpts && humanOpts.length > 0) {
-      // ロンチェック（人間用）
-      const discardTile = state.lastDiscard?.tile;
-      if (discardTile) {
-        const humanPlayer = state.players[humanIdx];
-        const counts = toCount34(humanPlayer.hand.closed);
-        counts[discardTile.id]++;
-        const agari = checkAgari(counts, humanPlayer.hand.melds);
-        if (agari) {
-          // 人間がロンできる → 人間の入力を待つ
-          return;
-        }
+      // ロンチェック（'ron' タイプで判定）
+      if (humanOpts.some(o => o.type === 'ron')) {
+        // 人間がロンできる → 人間の入力を待つ
+        return;
       }
 
-      // ポン・チーオプションがあれば人間の入力を待つ
-      const hasPonOrChi = humanOpts.some(o =>
-        o.type === MeldType.Pon || o.type === MeldType.Chi || o.type === MeldType.MinKan
-      );
+      // ポン・チーオプションがあれば人間の入力を待つ（チーは上家からのみ）
+      const kamicha = (humanIdx + 3) % 4;
+      const hasPonOrChi = humanOpts.some(o => {
+        if (o.type === MeldType.Pon || o.type === MeldType.MinKan) return true;
+        if (o.type === MeldType.Chi && state.lastDiscard?.playerIndex === kamicha) return true;
+        return false;
+      });
       if (hasPonOrChi) return;
     }
 
     // CPU の鳴き判断
     let bestCaller = -1;
-    let bestAction: { type: 'pon' | 'ron'; option?: CallOption } | null = null;
+    let bestAction: { type: 'pon' | 'ron' | 'minkan'; option?: CallOption } | null = null;
 
     for (const [playerIdx, opts] of callOptions.entries()) {
       if (playerIdx === humanIdx) continue;
@@ -195,17 +230,12 @@ export const useGameStore = create<GameStore>((set, get) => {
       const player = state.players[playerIdx];
       const closedCounts = toCount34(player.hand.closed);
 
-      // ロンチェック
-      const discardTile = state.lastDiscard?.tile;
-      if (discardTile) {
-        const tempCounts = [...closedCounts];
-        tempCounts[discardTile.id]++;
-        const agari = checkAgari(tempCounts, player.hand.melds);
-        if (agari) {
-          bestCaller = playerIdx;
-          bestAction = { type: 'ron' };
-          break;
-        }
+      // ロンチェック（'ron' タイプで判定）
+      const ronOpt = opts.find(o => o.type === 'ron');
+      if (ronOpt) {
+        bestCaller = playerIdx;
+        bestAction = { type: 'ron' };
+        break;
       }
 
       // ポンチェック
@@ -222,19 +252,23 @@ export const useGameStore = create<GameStore>((set, get) => {
 
       if (bestAction.type === 'ron') {
         newState = processRon(state, bestCaller);
-      } else {
-        const cpuPlayer = state.players[bestCaller];
-        const discardAfter = chooseDiscard(cpuPlayer.hand.closed, undefined);
-        newState = processPon(state, bestCaller, discardAfter);
-      }
-
-      set({ gameState: newState });
-
-      if (newState.phase === 'tsumo') {
+        set({ gameState: newState });
+        return;
+      } else if (bestAction.type === 'minkan') {
+        newState = processMinKan(state, bestCaller);
+        set({ gameState: newState });
+        // phase is 'discard' → CPU discard
         await delay(300);
-        processCpuTurn();
+        processCpuDiscard(newState);
+        return;
+      } else {
+        newState = processPon(state, bestCaller);
+        set({ gameState: newState });
+        // phase is 'discard' → CPU discard
+        await delay(300);
+        processCpuDiscard(newState);
+        return;
       }
-      return;
     }
 
     // チーチェック（下家のCPUのみ）
@@ -247,19 +281,22 @@ export const useGameStore = create<GameStore>((set, get) => {
           const cpuClosed = toCount34(state.players[nextPlayer].hand.closed);
           if (shouldCallChi(chiOpt, cpuClosed)) {
             await delay(300);
-            const cpuPlayer = state.players[nextPlayer];
-            const discardAfter = chooseDiscard(cpuPlayer.hand.closed, undefined);
-            const newState = processChi(state, nextPlayer, chiOpt.tiles, discardAfter);
+            const newState = processChi(state, nextPlayer, chiOpt.tiles);
             set({ gameState: newState });
-
-            if (newState.phase === 'tsumo') {
-              await delay(300);
-              processCpuTurn();
-            }
+            // phase is 'discard' → CPU discard
+            await delay(300);
+            processCpuDiscard(newState);
             return;
           }
         }
       }
+    }
+
+    // 四家立直チェック
+    if (checkSuuchariichi(state)) {
+      const drawState = processAbortiveDraw(state, 'suuchariichi');
+      set({ gameState: drawState });
+      return;
     }
 
     // 誰も鳴かない → 次のプレイヤー
@@ -356,14 +393,10 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (!state || state.phase !== 'calling') return;
 
       const humanIdx = get().humanPlayerIndex;
-      const player = state.players[humanIdx];
-      const discardAfter = chooseDiscard(player.hand.closed, undefined);
-      const newState = processPon(state, humanIdx, discardAfter);
+      const newState = processPon(state, humanIdx);
       set({ gameState: newState, selectedTile: null });
-
-      if (newState.phase === 'tsumo' && newState.currentPlayer !== humanIdx) {
-        setTimeout(() => processCpuTurn(), 300);
-      }
+      // phase is now 'discard' with currentPlayer = humanIdx
+      // human will discard via normal processDiscard flow
     },
 
     callChi: (option) => {
@@ -371,14 +404,10 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (!state || state.phase !== 'calling') return;
 
       const humanIdx = get().humanPlayerIndex;
-      const player = state.players[humanIdx];
-      const discardAfter = chooseDiscard(player.hand.closed, undefined);
-      const newState = processChi(state, humanIdx, option.tiles, discardAfter);
+      const newState = processChi(state, humanIdx, option.tiles);
       set({ gameState: newState, selectedTile: null });
-
-      if (newState.phase === 'tsumo' && newState.currentPlayer !== humanIdx) {
-        setTimeout(() => processCpuTurn(), 300);
-      }
+      // phase is now 'discard' with currentPlayer = humanIdx
+      // human will discard via normal processDiscard flow
     },
 
     callKan: (tileId) => {
@@ -386,6 +415,18 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (!state) return;
 
       const humanIdx = get().humanPlayerIndex;
+
+      // calling フェーズでの大明槓
+      if (state.phase === 'calling') {
+        let newState = processMinKan(state, humanIdx);
+        if (checkSuukaikan(newState)) {
+          newState = processAbortiveDraw(newState, 'suukaikan');
+        }
+        set({ gameState: newState, selectedTile: null });
+        return;
+      }
+
+      // discard フェーズでの暗槓/加槓
       const ankans = canAnKan(state, humanIdx);
       const shouminkan = canShouMinKan(state, humanIdx);
 
@@ -397,7 +438,6 @@ export const useGameStore = create<GameStore>((set, get) => {
           newState = processShouMinKan(state, tileId);
         }
       } else {
-        // 最初の槓可能牌
         const kanTile = ankans[0] ?? shouminkan[0];
         if (kanTile === undefined) return;
         if (ankans.includes(kanTile)) {
@@ -407,12 +447,22 @@ export const useGameStore = create<GameStore>((set, get) => {
         }
       }
 
+      if (checkSuukaikan(newState)) {
+        newState = processAbortiveDraw(newState, 'suukaikan');
+      }
       set({ gameState: newState, selectedTile: null });
     },
 
     skipCall: () => {
       const state = get().gameState;
       if (!state || state.phase !== 'calling') return;
+
+      // 四家立直チェック
+      if (checkSuuchariichi(state)) {
+        const newState = processAbortiveDraw(state, 'suuchariichi');
+        set({ gameState: newState });
+        return;
+      }
 
       const nextIdx = (state.lastDiscard!.playerIndex + 1) % 4;
       const newState: GameState = {
@@ -435,6 +485,15 @@ export const useGameStore = create<GameStore>((set, get) => {
         const afterTsumo = processTsumo(newState);
         set({ gameState: afterTsumo });
       }
+    },
+
+    declareKyuushu: () => {
+      const state = get().gameState;
+      if (!state) return;
+      const humanIdx = get().humanPlayerIndex;
+      if (!canKyuushuKyuhai(state, humanIdx)) return;
+      const newState = processKyuushuKyuhai(state);
+      set({ gameState: newState });
     },
 
     nextRound: () => {
@@ -469,6 +528,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         canDiscard: false, canTsumoAgari: false, canRon: false,
         canRiichi: false, riichiTiles: [], canChi: false, chiOptions: [],
         canPon: false, canKan: false, kanTiles: [], canSkip: false,
+        canKyuushu: false,
       };
 
       if (!state) return empty;
@@ -489,6 +549,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           riichiTiles,
           canKan: kanTiles.length > 0,
           kanTiles,
+          canKyuushu: canKyuushuKyuhai(state, humanIdx),
         };
       }
 
@@ -496,18 +557,18 @@ export const useGameStore = create<GameStore>((set, get) => {
         const opts = state.callOptions?.get(humanIdx);
         if (!opts || opts.length === 0) return empty;
 
-        // ロンチェック
-        let canRonFlag = false;
-        const discardTile = state.lastDiscard?.tile;
-        if (discardTile) {
-          const counts = toCount34(player.hand.closed);
-          counts[discardTile.id]++;
-          canRonFlag = !!checkAgari(counts, player.hand.melds);
-        }
+        // ロンチェック（'ron' タイプで判定）
+        const canRonFlag = opts.some(o => o.type === 'ron');
 
         const ponOpt = opts.find(o => o.type === MeldType.Pon);
-        const chiOpts = opts.filter(o => o.type === MeldType.Chi);
+        let chiOpts = opts.filter(o => o.type === MeldType.Chi);
         const minkanOpt = opts.find(o => o.type === MeldType.MinKan);
+
+        // チーは上家（左）からのみ
+        const kamicha = (humanIdx + 3) % 4;
+        if (state.lastDiscard?.playerIndex !== kamicha) {
+          chiOpts = [];
+        }
 
         return {
           ...empty,

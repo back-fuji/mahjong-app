@@ -31,15 +31,9 @@ export const Board: React.FC<BoardProps> = ({
   const leftIdx = getRelativeIndex(3);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-between p-2 select-none">
-      {/* 上（対面） */}
+    <div className="w-full h-full flex flex-col items-center justify-between p-4 select-none">
+      {/* 上（対面） - 手牌と捨て牌を横並び */}
       <div className="flex flex-col items-center gap-1">
-        <div className="flex items-center gap-2 text-sm text-gray-400">
-          <span>{WIND_NAMES[players[topIdx].seatWind]}</span>
-          <span>{players[topIdx].name}</span>
-          <span className="font-mono">{players[topIdx].score}</span>
-          {players[topIdx].isRiichi && <span className="text-red-400 font-bold">リーチ</span>}
-        </div>
         <HandDisplay
           hand={players[topIdx].hand}
           isCurrentPlayer={false}
@@ -50,78 +44,80 @@ export const Board: React.FC<BoardProps> = ({
         <DiscardPool
           discards={players[topIdx].discards}
           riichiTurn={players[topIdx].riichiTurn}
-          tileWidth={22}
-          tileHeight={30}
+          tileWidth={32}
+          tileHeight={44}
         />
       </div>
 
       {/* 中段: 左・中央・右 */}
-      <div className="flex items-center justify-between w-full max-w-4xl">
-        {/* 左 */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="text-xs text-gray-400">
-            {WIND_NAMES[players[leftIdx].seatWind]} {players[leftIdx].name}
-            <span className="ml-1 font-mono">{players[leftIdx].score}</span>
-            {players[leftIdx].isRiichi && <span className="text-red-400 ml-1">R</span>}
-          </div>
+      <div className="flex items-center justify-between w-full max-w-6xl">
+        {/* 左（上家）- 手牌と捨て牌を縦並び */}
+        <div className="flex flex-row items-center gap-1">
+          <HandDisplay
+            hand={players[leftIdx].hand}
+            isCurrentPlayer={false}
+            showTiles={false}
+            tileWidth={20}
+            tileHeight={28}
+            vertical={true}
+          />
           <DiscardPool
             discards={players[leftIdx].discards}
             riichiTurn={players[leftIdx].riichiTurn}
-            tileWidth={20}
-            tileHeight={28}
+            tileWidth={28}
+            tileHeight={38}
+            vertical={true}
           />
         </div>
 
         {/* 中央情報 */}
-        <div className="flex flex-col items-center gap-2">
-          <CenterInfo round={round} players={players} currentPlayer={currentPlayer} />
+        <div className="flex flex-col items-center gap-3">
+          <CenterInfo round={round} players={players} currentPlayer={currentPlayer} myIndex={humanPlayerIndex} />
 
           {/* ドラ表示 */}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400 mr-1">ドラ</span>
+          <div className="flex items-center gap-2">
+            <span className="text-base text-gray-300 mr-2">ドラ</span>
             {doraIndicators.map((t, i) => (
-              <TileSVG key={i} tile={t} width={24} height={33} />
+              <TileSVG key={i} tile={t} width={36} height={50} />
             ))}
           </div>
         </div>
 
-        {/* 右 */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="text-xs text-gray-400">
-            {WIND_NAMES[players[rightIdx].seatWind]} {players[rightIdx].name}
-            <span className="ml-1 font-mono">{players[rightIdx].score}</span>
-            {players[rightIdx].isRiichi && <span className="text-red-400 ml-1">R</span>}
-          </div>
+        {/* 右（下家）- 捨て牌と手牌を縦並び */}
+        <div className="flex flex-row items-center gap-1">
           <DiscardPool
             discards={players[rightIdx].discards}
             riichiTurn={players[rightIdx].riichiTurn}
+            tileWidth={28}
+            tileHeight={38}
+            vertical={true}
+          />
+          <HandDisplay
+            hand={players[rightIdx].hand}
+            isCurrentPlayer={false}
+            showTiles={false}
             tileWidth={20}
             tileHeight={28}
+            vertical={true}
           />
         </div>
       </div>
 
-      {/* 下（自分） */}
+      {/* 下（自分） - 捨て牌と手牌、名前を中央下で表示 */}
       <div className="flex flex-col items-center gap-1">
         <DiscardPool
           discards={players[bottomIdx].discards}
           riichiTurn={players[bottomIdx].riichiTurn}
-          tileWidth={26}
-          tileHeight={36}
+          tileWidth={36}
+          tileHeight={50}
         />
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-yellow-400">{WIND_NAMES[players[bottomIdx].seatWind]}</span>
-          <span>{players[bottomIdx].name}</span>
-          <span className="font-mono text-yellow-300">{players[bottomIdx].score}</span>
-          {players[bottomIdx].isRiichi && <span className="text-red-400 font-bold">リーチ</span>}
-        </div>
         <HandDisplay
           hand={players[bottomIdx].hand}
           isCurrentPlayer={currentPlayer === bottomIdx && (gameState.phase === 'discard' || gameState.phase === 'riichi_confirm')}
           selectedTile={selectedTile}
           onTileClick={onTileClick}
-          tileWidth={42}
-          tileHeight={58}
+          tileWidth={52}
+          tileHeight={72}
           showTiles={true}
         />
       </div>

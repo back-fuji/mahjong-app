@@ -7,7 +7,7 @@ import type { GameAction } from '../types/action.ts';
 import type { Meld, CallOption } from '../types/meld.ts';
 import { MeldType } from '../types/meld.ts';
 import { buildWall, dealTiles, drawRinshan } from '../wall/wall.ts';
-import { toCount34, sortTiles, emptyCount34, countDora, countRedDora } from '../tile/tile-utils.ts';
+import { toCount34, sortTiles, emptyCount34, countDora, countRedDora, isYaochu, isKaze } from '../tile/tile-utils.ts';
 import { getHandCounts, removeTileFromHand } from '../hand/hand-utils.ts';
 import { checkAgari, getWaitingTiles, isTenpai } from '../agari/agari.ts';
 import { getChiOptions, getPonOption, getMinKanOption, getAnKanTiles, getShouMinKanTiles } from '../meld/meld-utils.ts';
@@ -209,7 +209,7 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
 
   // 他家の鳴き・ロンチェック
   const callOpts = new Map<number, CallOption[]>();
-  let hasRon = false;
+  let ronCount = 0;
 
   for (let i = 0; i < 4; i++) {
     if (i === playerIdx) continue;
@@ -223,8 +223,8 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
     const agari = checkAgari(tempCounts, otherPlayer.hand.melds);
     if (agari) {
       // ロン可能 (フリテンチェックは簡略化)
-      hasRon = true;
-      opts.push({ type: MeldType.Pon, tiles: [], calledTile: tile.id }); // ロンマーカー（特殊）
+      ronCount++;
+      opts.push({ type: 'ron', tiles: [], calledTile: tile.id });
     }
 
     // ポンチェック
@@ -246,6 +246,22 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
     }
   }
 
+  // 三家和（3人以上ロン可能）→ 即流局
+  if (ronCount >= 3) {
+    const drawResult: DrawResult = {
+      type: 'sanchaho',
+      tenpaiPlayers: [],
+      payments: [0, 0, 0, 0],
+    };
+    return {
+      ...state,
+      players,
+      phase: 'round_result',
+      lastDiscard: { tile, playerIndex: playerIdx },
+      roundResult: { draw: drawResult },
+    };
+  }
+
   if (callOpts.size > 0) {
     return {
       ...state,
@@ -254,6 +270,12 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
       lastDiscard: { tile, playerIndex: playerIdx },
       callOptions: callOpts,
     };
+  }
+
+  // 四風連打チェック（全員1枚目の捨牌が出揃った直後）
+  const updatedState = { ...state, players, lastDiscard: { tile, playerIndex: playerIdx } };
+  if (checkSuufonrenda(updatedState)) {
+    return processAbortiveDraw(updatedState, 'suufonrenda');
   }
 
   // 鳴きなし → 次のプレイヤーへ
@@ -346,7 +368,7 @@ export function processRon(state: GameState, winnerIdx: number): GameState {
 }
 
 /** ポン処理 */
-export function processPon(state: GameState, callerIdx: number, discardAfter: TileInstance): GameState {
+export function processPon(state: GameState, callerIdx: number): GameState {
   const discardTile = state.lastDiscard!.tile;
   const fromIdx = state.lastDiscard!.playerIndex;
   const players = [...state.players];
@@ -380,13 +402,6 @@ export function processPon(state: GameState, callerIdx: number, discardAfter: Ti
     tsumo: undefined,
   };
   caller.isMenzen = false;
-
-  // 打牌
-  caller.hand = removeTileFromHand(
-    { ...caller.hand, tsumo: undefined, closed: sortTiles(newClosed) },
-    discardAfter,
-  );
-  caller.discards = [...caller.discards, discardAfter];
   players[callerIdx] = caller;
 
   // 全員の一発消し
@@ -396,17 +411,20 @@ export function processPon(state: GameState, callerIdx: number, discardAfter: Ti
     }
   }
 
-  return advanceToNextPlayer(
-    { ...state, players, lastDiscard: undefined, callOptions: undefined, round: { ...state.round, isFirstTurn: false } },
+  return {
+    ...state,
     players,
-    callerIdx,
-  );
+    phase: 'discard',
+    currentPlayer: callerIdx,
+    lastDiscard: undefined,
+    callOptions: undefined,
+    round: { ...state.round, isFirstTurn: false },
+  };
 }
 
 /** チー処理 */
-export function processChi(state: GameState, callerIdx: number, tiles: TileId[], discardAfter: TileInstance): GameState {
+export function processChi(state: GameState, callerIdx: number, tiles: TileId[]): GameState {
   const discardTile = state.lastDiscard!.tile;
-  const fromIdx = state.lastDiscard!.playerIndex;
   const players = [...state.players];
   const caller = { ...players[callerIdx] };
 
@@ -438,9 +456,6 @@ export function processChi(state: GameState, callerIdx: number, tiles: TileId[],
     tsumo: undefined,
   };
   caller.isMenzen = false;
-
-  caller.hand = removeTileFromHand(caller.hand, discardAfter);
-  caller.discards = [...caller.discards, discardAfter];
   players[callerIdx] = caller;
 
   for (let i = 0; i < 4; i++) {
@@ -449,11 +464,83 @@ export function processChi(state: GameState, callerIdx: number, tiles: TileId[],
     }
   }
 
-  return advanceToNextPlayer(
-    { ...state, players, lastDiscard: undefined, callOptions: undefined, round: { ...state.round, isFirstTurn: false } },
+  return {
+    ...state,
     players,
-    callerIdx,
+    phase: 'discard',
+    currentPlayer: callerIdx,
+    lastDiscard: undefined,
+    callOptions: undefined,
+    round: { ...state.round, isFirstTurn: false },
+  };
+}
+
+/** 大明槓処理（calling フェーズから呼ばれる） */
+export function processMinKan(state: GameState, callerIdx: number): GameState {
+  const discardTile = state.lastDiscard!.tile;
+  const fromIdx = state.lastDiscard!.playerIndex;
+  const players = [...state.players];
+  const caller = { ...players[callerIdx] };
+
+  // 手牌から3枚取り出す
+  const closedTiles = [...caller.hand.closed];
+  const kanTiles: TileInstance[] = [discardTile];
+  let found = 0;
+  const newClosed: TileInstance[] = [];
+  for (const t of closedTiles) {
+    if (t.id === discardTile.id && found < 3) {
+      kanTiles.push(t);
+      found++;
+    } else {
+      newClosed.push(t);
+    }
+  }
+
+  const relativePos = ((fromIdx - callerIdx + 4) % 4) as 1 | 2 | 3;
+  const meld: Meld = {
+    type: MeldType.MinKan,
+    tiles: kanTiles,
+    calledTile: discardTile,
+    fromPlayer: relativePos,
+  };
+
+  caller.hand = {
+    closed: sortTiles(newClosed),
+    melds: [...caller.hand.melds, meld],
+    tsumo: undefined,
+  };
+  caller.isMenzen = false;
+  players[callerIdx] = caller;
+
+  // 全員の一発消し
+  for (let i = 0; i < 4; i++) {
+    if (players[i].isIppatsu) {
+      players[i] = { ...players[i], isIppatsu: false };
+    }
+  }
+
+  // 嶺上牌をツモ
+  const rinResult = drawRinshan(
+    state.wall, state.rinshanIndex,
+    state.doraIndicators, state.uraDoraIndicators,
   );
+
+  caller.hand = { ...caller.hand, tsumo: rinResult.tile };
+  players[callerIdx] = caller;
+
+  return {
+    ...state,
+    players,
+    phase: 'discard',
+    currentPlayer: callerIdx,
+    lastDiscard: undefined,
+    callOptions: undefined,
+    rinshanIndex: rinResult.rinshanIndex,
+    doraIndicators: rinResult.doraIndicators,
+    uraDoraIndicators: rinResult.uraDoraIndicators,
+    kanCount: state.kanCount + 1,
+    round: { ...state.round, isFirstTurn: false },
+  };
 }
 
 /** 暗槓処理 */
@@ -785,4 +872,85 @@ export function canShouMinKan(state: GameState, playerIdx: number): TileId[] {
     : player.hand.closed;
   const counts = toCount34(allClosed);
   return getShouMinKanTiles(counts, player.hand.melds);
+}
+
+// ================== 流局判定 ==================
+
+/** 九種九牌が可能か */
+export function canKyuushuKyuhai(state: GameState, playerIdx: number): boolean {
+  if (!state.round.isFirstTurn) return false;
+  const player = state.players[playerIdx];
+  // 鳴きが入っていたら不可
+  if (player.hand.melds.length > 0) return false;
+
+  const allTiles = player.hand.tsumo
+    ? [...player.hand.closed, player.hand.tsumo]
+    : player.hand.closed;
+
+  const yaochuKinds = new Set<number>();
+  for (const t of allTiles) {
+    if (isYaochu(t.id)) {
+      yaochuKinds.add(t.id);
+    }
+  }
+  return yaochuKinds.size >= 9;
+}
+
+/** 九種九牌による流局処理 */
+export function processKyuushuKyuhai(state: GameState): GameState {
+  const drawResult: DrawResult = {
+    type: 'kyuushu',
+    tenpaiPlayers: [],
+    payments: [0, 0, 0, 0],
+  };
+  return {
+    ...state,
+    phase: 'round_result',
+    roundResult: { draw: drawResult },
+  };
+}
+
+/** 四家立直チェック */
+export function checkSuuchariichi(state: GameState): boolean {
+  return state.players.filter(p => p.isRiichi).length >= 4;
+}
+
+/** 四槓散了チェック（4回以上の槓が複数プレイヤーによって行われた） */
+export function checkSuukaikan(state: GameState): boolean {
+  if (state.kanCount < 4) return false;
+  // 1人が4回なら四槓子の可能性があるので流局しない
+  const kanCountPerPlayer = state.players.map(p =>
+    p.hand.melds.filter(m =>
+      m.type === MeldType.AnKan || m.type === MeldType.MinKan || m.type === MeldType.ShouMinKan
+    ).length
+  );
+  const playersWithKan = kanCountPerPlayer.filter(c => c > 0).length;
+  return playersWithKan >= 2;
+}
+
+/** 四風連打チェック（最初の巡回で4人全員が同じ風牌を捨てた） */
+export function checkSuufonrenda(state: GameState): boolean {
+  // 各プレイヤーの最初の捨て牌を確認
+  for (const p of state.players) {
+    if (p.discards.length === 0) return false;
+  }
+  const firstDiscards = state.players.map(p => p.discards[0].id);
+  // 全て同じ風牌か
+  const first = firstDiscards[0];
+  if (!isKaze(first)) return false;
+  return firstDiscards.every(id => id === first);
+}
+
+/** 流局結果を生成（四家立直、四槓散了、四風連打用） */
+export function processAbortiveDraw(state: GameState, type: DrawResult['type']): GameState {
+  const drawResult: DrawResult = {
+    type,
+    tenpaiPlayers: [],
+    payments: [0, 0, 0, 0],
+  };
+  return {
+    ...state,
+    phase: 'round_result',
+    roundResult: { draw: drawResult },
+  };
 }

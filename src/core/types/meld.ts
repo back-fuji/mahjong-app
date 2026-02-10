@@ -20,7 +20,7 @@ export interface Meld {
 
 /** 鳴きが可能かチェックするための情報 */
 export interface CallOption {
-  type: typeof MeldType.Chi | typeof MeldType.Pon | typeof MeldType.MinKan;
+  type: typeof MeldType.Chi | typeof MeldType.Pon | typeof MeldType.MinKan | 'ron';
   tiles: TileId[];
   calledTile: TileId;
 }

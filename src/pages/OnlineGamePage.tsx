@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React from 'react';
 import type { TileInstance } from '../core/types/tile.ts';
 import { TileSVG } from '../components/tile/TileSVG.tsx';
 import { DiscardPool } from '../components/board/DiscardPool.tsx';
@@ -7,7 +7,42 @@ import { CenterInfo } from '../components/board/CenterInfo.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { WIND_NAMES } from '../core/types/player.ts';
-import { MeldType } from '../core/types/meld.ts';
+import { TILE_SHORT } from '../core/types/tile.ts';
+
+/** フェーズに応じた状態メッセージ */
+function getPhaseMessage(
+  phase: string, 
+  isMyTurn: boolean, 
+  selectedTile: TileInstance | null,
+  canDiscard: boolean,
+  canCall: boolean
+): { message: string; hint: string; color: string } {
+  if (phase === 'round_result') {
+    return { message: '局終了', hint: '', color: 'bg-purple-600' };
+  }
+  
+  if (!isMyTurn && !canCall) {
+    return { message: '相手の番', hint: 'お待ちください...', color: 'bg-gray-600' };
+  }
+
+  if (canCall) {
+    return { message: '鳴きチャンス', hint: 'ポン・チー・カンまたはスキップ', color: 'bg-blue-600' };
+  }
+
+  if (canDiscard) {
+    if (selectedTile) {
+      const tileName = TILE_SHORT[selectedTile.id] || '?';
+      return { 
+        message: `選択中: ${tileName}`, 
+        hint: '打牌ボタンで捨てる / 他の牌をクリックで変更', 
+        color: 'bg-amber-600' 
+      };
+    }
+    return { message: 'あなたの番', hint: '捨てる牌を選んでください', color: 'bg-green-600' };
+  }
+
+  return { message: '処理中...', hint: '', color: 'bg-gray-600' };
+}
 
 interface OnlineGamePageProps {
   gameState: any;
@@ -46,15 +81,26 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
     }
   };
 
+  // ステータス計算
+  const isMyTurn = gameState.currentPlayer === myIndex;
+  const canDiscard = actions.includes('discard');
+  const canCall = actions.includes('pon') || actions.includes('chi') || actions.includes('ron');
+  const phaseInfo = getPhaseMessage(gameState.phase, isMyTurn, selectedTile, canDiscard, canCall);
+
   return (
-    <div className="w-full h-screen bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-2 select-none">
-      {/* 上（対面） */}
-      <div className="flex flex-col items-center gap-1">
-        <div className="text-sm text-gray-400">
-          {WIND_NAMES[players[topIdx].seatWind]} {players[topIdx].name}
-          <span className="ml-1 font-mono">{players[topIdx].score}</span>
-          {players[topIdx].isRiichi && <span className="text-red-400 ml-1">リーチ</span>}
+    <div className="w-full h-screen bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none">
+      {/* ステータスインジケーター */}
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50">
+        <div className={`${phaseInfo.color} px-6 py-2 rounded-full shadow-lg transition-all`}>
+          <div className="text-white font-bold text-lg text-center">{phaseInfo.message}</div>
+          {phaseInfo.hint && (
+            <div className="text-white/80 text-sm text-center">{phaseInfo.hint}</div>
+          )}
         </div>
+      </div>
+
+      {/* 上（対面） - 手牌と捨て牌を横並び */}
+      <div className="flex flex-col items-center gap-1">
         <div className="flex">
           {Array.from({ length: players[topIdx].closedCount || 0 }, (_, i) => (
             <TileSVG key={i} width={28} height={38} faceDown />
@@ -63,60 +109,76 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         <DiscardPool
           discards={players[topIdx].discards}
           riichiTurn={-1}
-          tileWidth={22}
-          tileHeight={30}
+          tileWidth={32}
+          tileHeight={44}
         />
       </div>
 
       {/* 中段 */}
-      <div className="flex items-center justify-between w-full max-w-4xl">
-        <div className="flex flex-col items-center gap-1">
-          <div className="text-xs text-gray-400">
-            {WIND_NAMES[players[leftIdx].seatWind]} {players[leftIdx].name}
-            <span className="ml-1 font-mono">{players[leftIdx].score}</span>
+      <div className="flex items-center justify-between w-full max-w-6xl">
+        {/* 左（上家）- 手牌と捨て牌を縦並び */}
+        <div className="flex flex-row items-center gap-1">
+          <div className="flex flex-col gap-0.5">
+            {Array.from({ length: players[leftIdx].closedCount || 0 }, (_, i) => (
+              <TileSVG key={i} width={20} height={28} faceDown />
+            ))}
           </div>
-          <DiscardPool discards={players[leftIdx].discards} riichiTurn={-1} tileWidth={20} tileHeight={28} />
+          <DiscardPool 
+            discards={players[leftIdx].discards} 
+            riichiTurn={-1} 
+            tileWidth={28} 
+            tileHeight={38} 
+            vertical={true} 
+          />
         </div>
 
-        <div className="flex flex-col items-center gap-2">
-          <CenterInfo round={round} players={players} currentPlayer={gameState.currentPlayer} />
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400 mr-1">ドラ</span>
+        <div className="flex flex-col items-center gap-3">
+          <CenterInfo round={round} players={players} currentPlayer={gameState.currentPlayer} myIndex={myIndex} />
+          <div className="flex items-center gap-2">
+            <span className="text-base text-gray-300 mr-2">ドラ</span>
             {gameState.doraIndicators?.map((t: TileInstance, i: number) => (
-              <TileSVG key={i} tile={t} width={24} height={33} />
+              <TileSVG key={i} tile={t} width={36} height={50} />
             ))}
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
-          <div className="text-xs text-gray-400">
-            {WIND_NAMES[players[rightIdx].seatWind]} {players[rightIdx].name}
-            <span className="ml-1 font-mono">{players[rightIdx].score}</span>
+        {/* 右（下家）- 捨て牌と手牌を縦並び */}
+        <div className="flex flex-row items-center gap-1">
+          <DiscardPool 
+            discards={players[rightIdx].discards} 
+            riichiTurn={-1} 
+            tileWidth={28} 
+            tileHeight={38} 
+            vertical={true} 
+          />
+          <div className="flex flex-col gap-0.5">
+            {Array.from({ length: players[rightIdx].closedCount || 0 }, (_, i) => (
+              <TileSVG key={i} width={20} height={28} faceDown />
+            ))}
           </div>
-          <DiscardPool discards={players[rightIdx].discards} riichiTurn={-1} tileWidth={20} tileHeight={28} />
         </div>
       </div>
 
-      {/* 下（自分） */}
+      {/* 下（自分） - 捨て牌と手牌 */}
       <div className="flex flex-col items-center gap-1">
-        <DiscardPool discards={players[bottomIdx].discards} riichiTurn={-1} tileWidth={26} tileHeight={36} />
-        <div className="text-sm">
-          <span className="text-yellow-400">{WIND_NAMES[players[bottomIdx].seatWind]}</span>
-          <span className="ml-1">{players[bottomIdx].name}</span>
-          <span className="ml-1 font-mono text-yellow-300">{players[bottomIdx].score}</span>
-        </div>
+        <DiscardPool 
+          discards={players[bottomIdx].discards} 
+          riichiTurn={-1} 
+          tileWidth={36} 
+          tileHeight={50} 
+        />
         <HandDisplay
           hand={myHand}
           isCurrentPlayer={actions.includes('discard')}
           selectedTile={selectedTile}
           onTileClick={handleTileClick}
-          tileWidth={42}
-          tileHeight={58}
+          tileWidth={52}
+          tileHeight={72}
           showTiles={true}
         />
       </div>
 
-      {/* アクションバー */}
+      {/* アクションバー - 右側に縦配置 */}
       <ActionBar
         canTsumoAgari={actions.includes('tsumo_agari')}
         canRon={actions.includes('ron')}
@@ -125,6 +187,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         canPon={actions.includes('pon')}
         canKan={actions.includes('kan')}
         canSkip={actions.includes('skip_call')}
+        canKyuushu={actions.includes('kyuushu')}
         onTsumoAgari={() => sendAction({ type: 'tsumo_agari' })}
         onRon={() => sendAction({ type: 'ron' })}
         onRiichi={() => {
@@ -134,16 +197,18 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         onPon={() => sendAction({ type: 'pon' })}
         onKan={() => sendAction({ type: 'kan' })}
         onSkip={() => sendAction({ type: 'skip_call' })}
+        onKyuushu={() => sendAction({ type: 'kyuushu' })}
       />
 
+      {/* 打牌ボタン - 左下に配置 */}
       {selectedTile && actions.includes('discard') && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
+        <div className="fixed bottom-6 left-6 z-40">
           <button
             onClick={() => {
               sendAction({ type: 'discard', tileIndex: selectedTile.index });
               setSelectedTile(null);
             }}
-            className="px-6 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-white font-bold shadow-lg"
+            className="px-10 py-4 bg-orange-500 hover:bg-orange-600 rounded-2xl text-white font-bold text-xl shadow-xl transition-all hover:scale-105 active:scale-95 ring-4 ring-orange-300/50"
           >
             打牌
           </button>
