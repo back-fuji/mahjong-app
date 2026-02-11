@@ -127,7 +127,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
             riichiDiscardIndex={-1} 
             tileWidth={28} 
             tileHeight={38} 
-            vertical={true} 
+            position="left"
           />
         </div>
 
@@ -148,7 +148,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
             riichiDiscardIndex={-1} 
             tileWidth={28} 
             tileHeight={38} 
-            vertical={true} 
+            position="right"
           />
           <div className="flex flex-col gap-0.5">
             {Array.from({ length: players[rightIdx].closedCount || 0 }, (_, i) => (

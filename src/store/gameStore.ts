@@ -16,7 +16,9 @@ import {
   applyRonSkipFuriten,
 } from '../core/state/game-engine.ts';
 import { toCount34 } from '../core/tile/tile-utils.ts';
-import { chooseDiscard, shouldCallPon, shouldCallChi, shouldRiichi, shouldTsumoAgari } from '../ai/strategy/strategy.ts';
+import { chooseDiscard } from '../ai/strategy/strategy.ts';
+import { aiChooseDiscard, aiShouldCallPon, aiShouldCallChi, aiShouldRiichi, aiShouldTsumoAgari } from '../ai/strategy/ai-controller.ts';
+import { useSettingsStore } from './settingsStore.ts';
 import { soundEngine } from '../audio/sound-engine.ts';
 import { replayRecorder } from '../replay/replay-recorder.ts';
 
@@ -100,8 +102,9 @@ export const useGameStore = create<GameStore>((set, get) => {
       const cpuPlayer = newState.players[newState.currentPlayer];
 
       // ツモ和了チェック
+      const aiDifficulty = useSettingsStore.getState().aiDifficulty;
       if (checkTsumoAgari(newState)) {
-        if (shouldTsumoAgari()) {
+        if (aiShouldTsumoAgari(aiDifficulty)) {
           soundEngine.playAgariVoice('tsumo');
           replayRecorder.record('tsumo_agari', newState.currentPlayer);
           newState = processTsumoAgari(newState);
@@ -138,8 +141,8 @@ export const useGameStore = create<GameStore>((set, get) => {
       const riichiTiles = canRiichi(newState, newState.currentPlayer);
       if (riichiTiles.length > 0) {
         const closedCounts = toCount34(cpuPlayer.hand.closed);
-        if (shouldRiichi(closedCounts)) {
-          const discardTile = chooseDiscard(cpuPlayer.hand.closed, cpuPlayer.hand.tsumo);
+        if (aiShouldRiichi(newState, newState.currentPlayer, closedCounts, aiDifficulty)) {
+          const discardTile = aiChooseDiscard(newState, newState.currentPlayer, aiDifficulty);
           // リーチ可能な牌でフィルタ
           const riichiDiscard = riichiTiles.find(t => t.id === discardTile.id) ?? riichiTiles[0];
           soundEngine.playRiichiVoice();
@@ -158,7 +161,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         const tile = cpuPlayer.hand.tsumo ?? cpuPlayer.hand.closed[cpuPlayer.hand.closed.length - 1];
         newState = processDiscard(newState, tile);
       } else {
-        const discardTile = chooseDiscard(cpuPlayer.hand.closed, cpuPlayer.hand.tsumo);
+        const discardTile = aiChooseDiscard(newState, newState.currentPlayer, aiDifficulty);
         newState = processDiscard(newState, discardTile);
       }
 
@@ -176,11 +179,12 @@ export const useGameStore = create<GameStore>((set, get) => {
     const cpuIdx = state.currentPlayer;
     const cpuPlayer = state.players[cpuIdx];
 
+    const aiDifficulty = useSettingsStore.getState().aiDifficulty;
     let discardTile: TileInstance;
     if (cpuPlayer.isRiichi) {
       discardTile = cpuPlayer.hand.tsumo ?? cpuPlayer.hand.closed[cpuPlayer.hand.closed.length - 1];
     } else {
-      let chosen = chooseDiscard(cpuPlayer.hand.closed, cpuPlayer.hand.tsumo);
+      let chosen = aiChooseDiscard(state, cpuIdx, aiDifficulty);
       // 喰い替え禁止牌チェック
       if (cpuPlayer.kuikaeDisallowedTiles.length > 0 && cpuPlayer.kuikaeDisallowedTiles.includes(chosen.id)) {
         const allTiles = cpuPlayer.hand.tsumo
@@ -257,6 +261,7 @@ export const useGameStore = create<GameStore>((set, get) => {
 
       const player = state.players[playerIdx];
       const closedCounts = toCount34(player.hand.closed);
+      const aiDiff = useSettingsStore.getState().aiDifficulty;
 
       // ロンチェック（'ron' タイプで判定）
       const ronOpt = opts.find(o => o.type === 'ron');
@@ -268,7 +273,7 @@ export const useGameStore = create<GameStore>((set, get) => {
 
       // ポンチェック
       const ponOpt = opts.find(o => o.type === MeldType.Pon);
-      if (ponOpt && shouldCallPon(ponOpt, closedCounts)) {
+      if (ponOpt && aiShouldCallPon(state, playerIdx, ponOpt, closedCounts, aiDiff)) {
         bestCaller = playerIdx;
         bestAction = { type: 'pon', option: ponOpt };
       }
@@ -314,7 +319,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         const chiOpt = chiOpts.find(o => o.type === MeldType.Chi);
         if (chiOpt) {
           const cpuClosed = toCount34(state.players[nextPlayer].hand.closed);
-          if (shouldCallChi(chiOpt, cpuClosed)) {
+          const aiDiff2 = useSettingsStore.getState().aiDifficulty;
+          if (aiShouldCallChi(state, nextPlayer, chiOpt, cpuClosed, aiDiff2)) {
             soundEngine.playCallSound('chi');
             replayRecorder.record('chi', nextPlayer, { tiles: chiOpt.tiles });
             await delay(300);

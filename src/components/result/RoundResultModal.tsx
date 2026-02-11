@@ -3,8 +3,11 @@ import { motion } from 'framer-motion';
 import type { RoundResult } from '../../core/types/game-state.ts';
 import type { Player } from '../../core/types/player.ts';
 import { WIND_NAMES } from '../../core/types/player.ts';
+import { TILE_NAMES } from '../../core/types/tile.ts';
 import { TileSVG } from '../tile/TileSVG.tsx';
 import { MeldType } from '../../core/types/meld.ts';
+import { toCount34 } from '../../core/tile/tile-utils.ts';
+import { getWaitingTiles } from '../../core/agari/agari.ts';
 
 interface RoundResultModalProps {
   result: RoundResult;
@@ -176,16 +179,85 @@ export const RoundResultModal: React.FC<RoundResultModalProps> = ({ result, play
             );
           })
         ) : result.draw ? (
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-400 mb-3">流局</h2>
-            <div className="text-sm mb-2">
-              テンパイ: {result.draw.tenpaiPlayers.length > 0
-                ? result.draw.tenpaiPlayers.map(i => players[i].name).join(', ')
-                : 'なし'
-              }
-            </div>
-            {result.draw.tenpaiPlayers.length > 0 && result.draw.tenpaiPlayers.length < 4 && (
-              <div className="text-sm text-gray-400">ノーテン罰符</div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-400 mb-4 text-center">流局</h2>
+
+            {/* テンパイプレイヤーの手牌と待ち牌を表示 */}
+            {result.draw.tenpaiPlayers.length > 0 ? (
+              <div className="space-y-4">
+                {result.draw.tenpaiPlayers.map(pi => {
+                  const tenpaiPlayer = players[pi];
+                  const closedCounts = toCount34(tenpaiPlayer.hand.closed);
+                  const waits = getWaitingTiles(closedCounts, tenpaiPlayer.hand.melds);
+
+                  return (
+                    <div key={pi} className="bg-gray-800 rounded-xl p-3">
+                      <div className="text-sm mb-2">
+                        <span className="text-orange-300 font-bold">{WIND_NAMES[tenpaiPlayer.seatWind]}</span>
+                        <span className="ml-2 text-white">{tenpaiPlayer.name}</span>
+                        <span className="ml-2 text-yellow-400 text-xs">聴牌</span>
+                      </div>
+
+                      {/* 手牌公開 */}
+                      <div className="flex items-end flex-wrap gap-0.5 mb-2">
+                        {tenpaiPlayer.hand.closed.map((tile, idx) => (
+                          <motion.div
+                            key={tile.index}
+                            initial={{ rotateY: 180, opacity: 0 }}
+                            animate={{ rotateY: 0, opacity: 1 }}
+                            transition={{ delay: idx * 0.05, duration: 0.25, ease: 'easeOut' }}
+                            style={{ display: 'inline-flex' }}
+                          >
+                            <TileSVG tile={tile} width={30} height={42} />
+                          </motion.div>
+                        ))}
+                        {/* 副露 */}
+                        {tenpaiPlayer.hand.melds.length > 0 && (
+                          <div className="ml-3 flex items-end gap-1">
+                            {tenpaiPlayer.hand.melds.map((meld, mi) => (
+                              <div key={mi} className="flex items-end border-l border-gray-600 pl-1">
+                                {meld.tiles.map((tile, ti) => {
+                                  const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
+                                  return (
+                                    <TileSVG
+                                      key={tile.index}
+                                      tile={tile}
+                                      width={26}
+                                      height={36}
+                                      sideways={!!isCalled}
+                                      faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 待ち牌 */}
+                      {waits.length > 0 && (
+                        <div className="flex items-center gap-2 mt-1 border-t border-gray-700 pt-2">
+                          <span className="text-xs text-gray-400">待ち:</span>
+                          <div className="flex gap-1 flex-wrap">
+                            {waits.map(tileId => (
+                              <div key={tileId} className="flex flex-col items-center">
+                                <TileSVG tileId={tileId} width={26} height={36} />
+                                <span className="text-[10px] text-orange-300 mt-0.5">{TILE_NAMES[tileId]}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {result.draw.tenpaiPlayers.length < 4 && (
+                  <div className="text-sm text-gray-400 text-center">ノーテン罰符</div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 text-center">全員ノーテン</div>
             )}
           </div>
         ) : null}

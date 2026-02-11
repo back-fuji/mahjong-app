@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore.ts';
+import type { ThemeType, AiDifficulty, TileSizeType } from '../store/settingsStore.ts';
 import { soundEngine } from '../audio/sound-engine.ts';
 
 export const SettingsPage: React.FC = () => {
@@ -10,14 +11,113 @@ export const SettingsPage: React.FC = () => {
     soundVolume, setSoundVolume,
     voiceEnabled, setVoiceEnabled,
     animationSpeed, setAnimationSpeed,
+    theme, setTheme,
+    aiDifficulty, setAiDifficulty,
+    tileSize, setTileSize,
   } = useSettingsStore();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-green-900">
-      <div className="bg-gray-900/90 rounded-2xl p-8 max-w-md w-full mx-4 text-white">
-        <h1 className="text-3xl font-bold text-center mb-6 text-yellow-400">設定</h1>
+    <div className="min-h-screen flex items-center justify-center theme-gradient">
+      <div className="theme-bg-card rounded-2xl p-8 max-w-md w-full mx-4 text-white overflow-y-auto max-h-[90vh]">
+        <h1 className="text-3xl font-bold text-center mb-6 theme-text-accent">設定</h1>
 
         <div className="space-y-6">
+          {/* UIテーマ */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">UIテーマ</span>
+            </div>
+            <div className="flex gap-2">
+              {([
+                { value: 'dark' as ThemeType, label: 'ダーク' },
+                { value: 'green' as ThemeType, label: 'グリーン' },
+                { value: 'classic' as ThemeType, label: '和風' },
+              ]).map(({ value, label }) => {
+                const isActive = theme === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all
+                      ${isActive
+                        ? 'bg-yellow-500 text-black'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-gray-500 text-xs mt-1">画面全体の色合いを変更します。</p>
+          </div>
+
+          {/* AI難易度 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">AI難易度</span>
+            </div>
+            <div className="flex gap-2">
+              {([
+                { value: 'easy' as AiDifficulty, label: '初級', desc: '攻撃的でミスあり' },
+                { value: 'normal' as AiDifficulty, label: '中級', desc: '効率重視+基本防御' },
+                { value: 'hard' as AiDifficulty, label: '上級', desc: '高度な押し引き' },
+              ]).map(({ value, label }) => {
+                const isActive = aiDifficulty === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setAiDifficulty(value)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all
+                      ${isActive
+                        ? 'bg-yellow-500 text-black'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-gray-500 text-xs mt-1">
+              {aiDifficulty === 'easy' && '初級: CPUは効率計算にミスがあり、防御をしません。初心者向け。'}
+              {aiDifficulty === 'normal' && '中級: 効率重視の打牌＋リーチ者に対する基本的な防御。'}
+              {aiDifficulty === 'hard' && '上級: 高度な防御（スジ・カベ分析）＋点数状況判断＋押し引き判断。'}
+            </p>
+          </div>
+
+          {/* 牌サイズ */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">牌サイズ</span>
+            </div>
+            <div className="flex gap-2">
+              {([
+                { value: 'small' as TileSizeType, label: '小' },
+                { value: 'medium' as TileSizeType, label: '中' },
+                { value: 'large' as TileSizeType, label: '大' },
+              ]).map(({ value, label }) => {
+                const isActive = tileSize === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setTileSize(value)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all
+                      ${isActive
+                        ? 'bg-yellow-500 text-black'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-gray-500 text-xs mt-1">牌の表示サイズを変更します。</p>
+          </div>
+
+          <hr className="border-gray-700" />
+
           {/* サウンド ON/OFF */}
           <div>
             <label className="flex items-center justify-between cursor-pointer">

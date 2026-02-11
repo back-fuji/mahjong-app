@@ -9,8 +9,6 @@ interface DiscardPoolProps {
   riichiDiscardIndex: number;
   tileWidth?: number;
   tileHeight?: number;
-  /** 縦向き配置（左右プレイヤー用） */
-  vertical?: boolean;
   /** 最後の捨て牌をハイライト */
   highlightLast?: boolean;
   /** プレイヤーの位置（捨て牌の並び方向を制御） */
@@ -37,105 +35,11 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
   riichiDiscardIndex,
   tileWidth = 30,
   tileHeight = 42,
-  vertical = false,
   highlightLast = false,
   position = 'bottom',
 }) => {
   const lastIdx = highlightLast && discards.length > 0 ? discards.length - 1 : -1;
-  // リーチ宣言牌の実効インデックス。そのインデックスの牌が存在するなら横向きにする。
-  // riichiDiscardIndex が設定されていれば、そのインデックス以降で最初に存在する牌を横向き表示
   const riichiTurn = riichiDiscardIndex;
-
-  if (vertical) {
-    // 縦向き: 3枚×複数列
-    const cols: TileInstance[][] = [];
-    discards.forEach((tile, i) => {
-      const col = Math.floor(i / 3);
-      if (!cols[col]) cols[col] = [];
-      cols[col].push(tile);
-    });
-
-    // 右プレイヤー: そのプレイヤーから見て左→右に並ぶように、
-    //   自分(下)からは上から下に列が進み、各列は右から左に牌が並ぶ
-    // 左プレイヤー: そのプレイヤーから見て左→右に並ぶように、
-    //   自分(下)からは下から上に列が進み、各列は左から右に牌が並ぶ
-
-    if (position === 'right') {
-      // 右プレイヤー: 列は上→下(そのまま)、各列内は逆順(下→上)
-      return (
-        <div className="flex flex-col gap-0">
-          {cols.map((col, ci) => (
-            <div key={ci} className="flex flex-row-reverse">
-              {col.map((tile, ti) => {
-                const globalIdx = ci * 3 + ti;
-                const isRiichi = riichiTurn >= 0 && globalIdx === riichiTurn;
-                return (
-                  <TileSVG
-                    key={tile.index}
-                    tile={tile}
-                    width={tileWidth}
-                    height={tileHeight}
-                    sideways={isRiichi}
-                    highlighted={globalIdx === lastIdx}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (position === 'left') {
-      // 左プレイヤー: 列は下→上(逆順)、各列内はそのまま(上→下)
-      return (
-        <div className="flex flex-col-reverse gap-0">
-          {cols.map((col, ci) => (
-            <div key={ci} className="flex flex-row">
-              {col.map((tile, ti) => {
-                const globalIdx = ci * 3 + ti;
-                const isRiichi = riichiTurn >= 0 && globalIdx === riichiTurn;
-                return (
-                  <TileSVG
-                    key={tile.index}
-                    tile={tile}
-                    width={tileWidth}
-                    height={tileHeight}
-                    sideways={isRiichi}
-                    highlighted={globalIdx === lastIdx}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    // デフォルトの縦向き（以前の挙動）
-    return (
-      <div className="flex flex-row gap-0">
-        {cols.map((col, ci) => (
-          <div key={ci} className="flex flex-col">
-            {col.map((tile, ti) => {
-              const globalIdx = ci * 3 + ti;
-              const isRiichi = riichiTurn >= 0 && globalIdx === riichiTurn;
-              return (
-                <TileSVG
-                  key={tile.index}
-                  tile={tile}
-                  width={tileWidth}
-                  height={tileHeight}
-                  sideways={isRiichi}
-                  highlighted={globalIdx === lastIdx}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   // 横向き: 6枚×4段（流局時24枚対応）
   const rows: TileInstance[][] = [[], [], [], []];
@@ -143,6 +47,73 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
     const row = Math.min(Math.floor(i / 6), 3);
     rows[row].push(tile);
   });
+
+  // 左右プレイヤー: 通常レイアウト（6列×4段）を丸ごと回転
+  if (position === 'right') {
+    // 右プレイヤー: 通常の並びを -90度回転（反時計回り）
+    // 元の並びは自分(bottom)と同じ左→右、上→下
+    // 回転後は上が自分側（中央側）になる
+    return (
+      <div
+        style={{ transform: 'rotate(-90deg)', transformOrigin: 'center center' }}
+      >
+        <div className="flex flex-col items-center gap-0">
+          {rows.map((row, ri) => (
+            row.length > 0 && (
+              <div key={ri} className="flex">
+                {row.map((tile, ti) => {
+                  const globalIdx = ri * 6 + ti;
+                  const isRiichi = riichiTurn >= 0 && globalIdx === riichiTurn;
+                  return (
+                    <TileSVG
+                      key={tile.index}
+                      tile={tile}
+                      width={tileWidth}
+                      height={tileHeight}
+                      sideways={isRiichi}
+                      highlighted={globalIdx === lastIdx}
+                    />
+                  );
+                })}
+              </div>
+            )
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (position === 'left') {
+    // 左プレイヤー: 通常の並びを +90度回転（時計回り）
+    return (
+      <div
+        style={{ transform: 'rotate(90deg)', transformOrigin: 'center center' }}
+      >
+        <div className="flex flex-col items-center gap-0">
+          {rows.map((row, ri) => (
+            row.length > 0 && (
+              <div key={ri} className="flex">
+                {row.map((tile, ti) => {
+                  const globalIdx = ri * 6 + ti;
+                  const isRiichi = riichiTurn >= 0 && globalIdx === riichiTurn;
+                  return (
+                    <TileSVG
+                      key={tile.index}
+                      tile={tile}
+                      width={tileWidth}
+                      height={tileHeight}
+                      sideways={isRiichi}
+                      highlighted={globalIdx === lastIdx}
+                    />
+                  );
+                })}
+              </div>
+            )
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // 対面（上）は180度回転: 行も牌も逆順に並べる
   if (position === 'top') {

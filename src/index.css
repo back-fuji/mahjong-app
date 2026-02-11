@@ -1,11 +1,55 @@
 @import "tailwindcss";
 
+/* === テーマ定義 === */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-board: #14532d;
+  --bg-card: rgba(17, 24, 39, 0.9);
+  --bg-card-hover: rgba(31, 41, 55, 0.9);
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-accent: #facc15;
+  --border-primary: rgba(255, 255, 255, 0.15);
+  --gradient-from: #111827;
+  --gradient-to: #14532d;
+}
+
+[data-theme="green"] {
+  --bg-primary: #064e3b;
+  --bg-secondary: #065f46;
+  --bg-board: #14532d;
+  --bg-card: rgba(6, 78, 59, 0.92);
+  --bg-card-hover: rgba(6, 95, 70, 0.92);
+  --text-primary: #ffffff;
+  --text-secondary: #a7f3d0;
+  --text-accent: #fbbf24;
+  --border-primary: rgba(167, 243, 208, 0.2);
+  --gradient-from: #064e3b;
+  --gradient-to: #14532d;
+}
+
+[data-theme="classic"] {
+  --bg-primary: #292524;
+  --bg-secondary: #44403c;
+  --bg-board: #3f2f1f;
+  --bg-card: rgba(41, 37, 36, 0.93);
+  --bg-card-hover: rgba(68, 64, 60, 0.93);
+  --text-primary: #fef3c7;
+  --text-secondary: #d6d3d1;
+  --text-accent: #f59e0b;
+  --border-primary: rgba(245, 158, 11, 0.2);
+  --gradient-from: #292524;
+  --gradient-to: #3f2f1f;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #1a472a;
-  color: white;
+  background-color: var(--bg-board);
+  color: var(--text-primary);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
@@ -14,25 +58,94 @@ body {
   height: 100vh;
 }
 
-/* 和了アナウンスアニメーション */
-@keyframes agari-announce {
-  0% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  30% {
-    opacity: 1;
-    transform: scale(1.1);
-  }
-  50% {
-    transform: scale(1.0);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1.0);
-  }
+/* テーマ対応ユーティリティ */
+.theme-bg-primary { background-color: var(--bg-primary); }
+.theme-bg-secondary { background-color: var(--bg-secondary); }
+.theme-bg-card { background-color: var(--bg-card); }
+.theme-text-primary { color: var(--text-primary); }
+.theme-text-secondary { color: var(--text-secondary); }
+.theme-text-accent { color: var(--text-accent); }
+.theme-border { border-color: var(--border-primary); }
+.theme-gradient {
+  background: linear-gradient(to bottom, var(--gradient-from), var(--gradient-to));
 }
 
-.animate-agari-announce {
-  animation: agari-announce 0.5s ease-out forwards;
+/* ===== カットインエフェクト ===== */
+
+/* 斜めスラッシュラインが画面を横切るアニメーション */
+@keyframes cutin-slash-left {
+  0% { transform: translateX(-120%) skewX(-25deg); opacity: 0; }
+  20% { opacity: 1; }
+  50% { transform: translateX(0%) skewX(-25deg); opacity: 1; }
+  100% { transform: translateX(120%) skewX(-25deg); opacity: 0; }
 }
+@keyframes cutin-slash-right {
+  0% { transform: translateX(120%) skewX(25deg); opacity: 0; }
+  20% { opacity: 1; }
+  50% { transform: translateX(0%) skewX(25deg); opacity: 1; }
+  100% { transform: translateX(-120%) skewX(25deg); opacity: 0; }
+}
+
+/* 背景帯が左右から挟み込む */
+@keyframes cutin-band-left {
+  0% { transform: translateX(-100%); }
+  30% { transform: translateX(0%); }
+  80% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
+}
+@keyframes cutin-band-right {
+  0% { transform: translateX(100%); }
+  30% { transform: translateX(0%); }
+  80% { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+
+/* テキスト登場 */
+@keyframes cutin-text {
+  0% { opacity: 0; transform: scale(3) translateX(30px); filter: blur(12px); }
+  15% { opacity: 1; transform: scale(1.1) translateX(0px); filter: blur(0px); }
+  50% { opacity: 1; transform: scale(1.0); }
+  85% { opacity: 1; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* 放射状フラッシュ */
+@keyframes cutin-flash {
+  0% { opacity: 0; }
+  10% { opacity: 0.8; }
+  30% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* 集中線 */
+@keyframes cutin-speed-line {
+  0% { opacity: 0; transform: scaleX(0); }
+  20% { opacity: 0.6; transform: scaleX(1); }
+  80% { opacity: 0.4; }
+  100% { opacity: 0; }
+}
+
+.cutin-slash-left { animation: cutin-slash-left 0.6s ease-out forwards; }
+.cutin-slash-right { animation: cutin-slash-right 0.6s ease-out 0.05s forwards; }
+.cutin-band-left { animation: cutin-band-left 2s ease-in-out forwards; }
+.cutin-band-right { animation: cutin-band-right 2s ease-in-out forwards; }
+.cutin-text { animation: cutin-text 2s ease-out forwards; }
+.cutin-flash { animation: cutin-flash 0.8s ease-out forwards; }
+
+/* 小さめカットイン（ポン・チー・カン用） */
+@keyframes cutin-text-small {
+  0% { opacity: 0; transform: scale(2.5) translateX(20px); filter: blur(8px); }
+  20% { opacity: 1; transform: scale(1.05) translateX(0px); filter: blur(0px); }
+  60% { opacity: 1; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(0.95); }
+}
+.cutin-text-small { animation: cutin-text-small 0.8s ease-out forwards; }
+
+/* リーチ用帯 */
+@keyframes cutin-riichi-band {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  25% { transform: translateX(0%) skewX(-5deg); }
+  75% { transform: translateX(0%) skewX(-5deg); }
+  100% { transform: translateX(100%) skewX(-15deg); }
+}
+.cutin-riichi-band { animation: cutin-riichi-band 2s ease-in-out forwards; }

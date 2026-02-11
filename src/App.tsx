@@ -9,6 +9,9 @@ import { TutorialPage } from './pages/TutorialPage.tsx';
 import { HistoryPage } from './pages/HistoryPage.tsx';
 import { SaveLoadPage } from './pages/SaveLoadPage.tsx';
 import { ReplayPage } from './pages/ReplayPage.tsx';
+import { HelpPage } from './pages/HelpPage.tsx';
+import { YakuListPage } from './pages/YakuListPage.tsx';
+import { AchievementsPage } from './pages/AchievementsPage.tsx';
 import { GameResultScreen } from './components/result/GameResultScreen.tsx';
 
 function App() {
@@ -23,6 +26,9 @@ function App() {
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/saves" element={<SaveLoadPage />} />
       <Route path="/replay/:id" element={<ReplayPage />} />
+      <Route path="/help" element={<HelpPage />} />
+      <Route path="/yaku" element={<YakuListPage />} />
+      <Route path="/achievements" element={<AchievementsPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

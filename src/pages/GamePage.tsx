@@ -8,11 +8,13 @@ import { ChiSelector } from '../components/actions/ChiSelector.tsx';
 import { CallAnnouncement } from '../components/effects/CallAnnouncement.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { AgariAnnouncement } from '../components/result/AgariAnnouncement.tsx';
+import { AchievementToast } from '../components/effects/AchievementToast.tsx';
 import { soundEngine } from '../audio/sound-engine.ts';
 import { autoSave } from '../db/save-load.ts';
 import { saveGameHistory } from '../db/game-history.ts';
+import { checkRoundAchievements, checkGameEndAchievements, setAchievementUnlockCallback } from '../achievements/achievement-tracker.ts';
 import type { TileInstance } from '../core/types/tile.ts';
-import { TILE_SHORT } from '../core/types/tile.ts';
+import { TILE_NAMES } from '../core/types/tile.ts';
 
 /** フェーズに応じた状態メッセージ（グラスUI用：border色で状態を表す） */
 function getPhaseMessage(
@@ -36,7 +38,7 @@ function getPhaseMessage(
 
   if (canDiscard) {
     if (selectedTile) {
-      const tileName = TILE_SHORT[selectedTile.id] || '?';
+      const tileName = (TILE_NAMES[selectedTile.id] || '?') + (selectedTile.isRed ? '(赤)' : '');
       return {
         message: `選択中: ${tileName}`,
         hint: '打牌ボタンで捨てる / 他の牌をクリックで変更',
@@ -79,11 +81,25 @@ export const GamePage: React.FC = () => {
   const [callAnnouncementText, setCallAnnouncementText] = useState<string | null>(null);
   const prevPhaseRef = useRef(gameState?.phase);
 
-  // ゲーム終了時に結果画面へ遷移 + 対局履歴を保存
+  // 実績トースト
+  const [achievementToastIds, setAchievementToastIds] = useState<string[]>([]);
+
+  // 実績コールバック登録
+  useEffect(() => {
+    setAchievementUnlockCallback((ids) => {
+      setAchievementToastIds(prev => [...prev, ...ids]);
+    });
+    return () => setAchievementUnlockCallback(() => {});
+  }, []);
+
+  // ゲーム終了時に結果画面へ遷移 + 対局履歴を保存 + 実績チェック
   useEffect(() => {
     if (gameState?.phase === 'game_result') {
       saveGameHistory(gameState, humanPlayerIndex).catch(() => {});
-      navigate('/result');
+      checkGameEndAchievements(gameState, humanPlayerIndex).catch(() => {});
+      // 少し待ってから遷移（実績トーストを見せるため）
+      const timer = setTimeout(() => navigate('/result'), 500);
+      return () => clearTimeout(timer);
     }
   }, [gameState?.phase, navigate]);
 
@@ -98,7 +114,48 @@ export const GamePage: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, [gameState, humanPlayerIndex]);
 
-  // 局結果が和了の場合、まずアナウンスを表示してから詳細表示
+  // 局結果時に実績チェック
+  useEffect(() => {
+    if (gameState?.phase === 'round_result' && gameState.roundResult) {
+      checkRoundAchievements(gameState.roundResult, humanPlayerIndex).catch(() => {});
+    }
+  }, [gameState?.phase, gameState?.roundResult, humanPlayerIndex]);
+
+  // リーチ演出
+  const [showRiichiAnnouncement, setShowRiichiAnnouncement] = useState(false);
+  const prevRiichiRef = useRef<boolean[]>([]);
+  const riichiTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // リーチ状態の変化を追跡する文字列（依存配列用）
+  const riichiKey = gameState?.players.map(p => p.isRiichi ? '1' : '0').join('') ?? '';
+
+  useEffect(() => {
+    if (!gameState) return;
+    const currentRiichi = gameState.players.map(p => p.isRiichi);
+    const prevRiichi = prevRiichiRef.current;
+    prevRiichiRef.current = currentRiichi;
+
+    // いずれかのプレイヤーが新たにリーチした
+    if (prevRiichi.length === 4) {
+      for (let i = 0; i < 4; i++) {
+        if (currentRiichi[i] && !prevRiichi[i]) {
+          // queueMicrotaskで非同期化（react-hooks/set-state-in-effect対策）
+          queueMicrotask(() => {
+            setShowRiichiAnnouncement(true);
+            if (riichiTimerRef.current) clearTimeout(riichiTimerRef.current);
+            riichiTimerRef.current = setTimeout(() => setShowRiichiAnnouncement(false), 2000);
+          });
+          return;
+        }
+      }
+    }
+    return () => {
+      if (riichiTimerRef.current) clearTimeout(riichiTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [riichiKey]);
+
+  // 局結果が和了の場合、まずアナウンスを2秒表示してから詳細表示
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
@@ -109,7 +166,7 @@ export const GamePage: React.FC = () => {
       const timer = setTimeout(() => {
         setShowAnnouncement(false);
         setShowDetailedResult(true);
-      }, 800);
+      }, 2000);
 
       return () => clearTimeout(timer);
     } else if (gameState?.phase === 'round_result') {
@@ -141,7 +198,7 @@ export const GamePage: React.FC = () => {
         if (callName) {
           soundEngine.playCallSound(lastMeld.type === 'chi' ? 'chi' : lastMeld.type === 'pon' ? 'pon' : 'kan');
           setCallAnnouncementText(callName);
-          setTimeout(() => setCallAnnouncementText(null), 600);
+          setTimeout(() => setCallAnnouncementText(null), 800);
         }
       }
     }
@@ -285,12 +342,32 @@ export const GamePage: React.FC = () => {
 
   return (
     <div className="w-full h-screen bg-green-900 overflow-hidden relative" onClick={handleBackgroundClick}>
-      {/* ステータスインジケーター（自分の捨て牌の上あたりに配置） */}
-      <div className="fixed bottom-[200px] sm:bottom-[280px] left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-        <div className={`bg-black/30 backdrop-blur-md border ${phaseInfo.borderColor} px-3 py-1 sm:px-5 sm:py-1.5 rounded-full shadow-lg transition-all`}>
-          <div className="text-white/90 font-bold text-sm sm:text-base text-center">{phaseInfo.message}</div>
+      {/* ヘルプ・役一覧ボタン（右上） */}
+      <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 flex gap-1">
+        <button
+          onClick={() => navigate('/help')}
+          className="w-8 h-8 sm:w-9 sm:h-9 bg-black/30 backdrop-blur-md border border-white/20 rounded-full
+            text-white/70 hover:text-white hover:bg-black/50 transition-all text-sm sm:text-base font-bold"
+          title="ヘルプ"
+        >
+          ?
+        </button>
+        <button
+          onClick={() => navigate('/yaku')}
+          className="w-8 h-8 sm:w-9 sm:h-9 bg-black/30 backdrop-blur-md border border-white/20 rounded-full
+            text-white/70 hover:text-white hover:bg-black/50 transition-all text-[10px] sm:text-xs font-bold"
+          title="役一覧"
+        >
+          役
+        </button>
+      </div>
+
+      {/* ステータスインジケーター（画面最左に配置 — 中央ダイヤと被らない） */}
+      <div className="fixed top-1/2 -translate-y-1/2 left-2 sm:left-3 z-50 pointer-events-none">
+        <div className={`bg-black/40 backdrop-blur-md border ${phaseInfo.borderColor} px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl shadow-lg transition-all`}>
+          <div className="text-white/90 font-bold text-xs sm:text-sm text-center whitespace-nowrap">{phaseInfo.message}</div>
           {phaseInfo.hint && (
-            <div className="text-white/60 text-[10px] sm:text-xs text-center">{phaseInfo.hint}</div>
+            <div className="text-white/60 text-[9px] sm:text-[10px] text-center max-w-[80px] sm:max-w-[100px] leading-tight">{phaseInfo.hint}</div>
           )}
         </div>
       </div>
@@ -384,7 +461,12 @@ export const GamePage: React.FC = () => {
         <CallAnnouncement text={callAnnouncementText} />
       )}
 
-      {/* ツモ/ロン アナウンス（画面中央に大きく表示） */}
+      {/* リーチ カットイン */}
+      {showRiichiAnnouncement && (
+        <AgariAnnouncement text="リーチ" />
+      )}
+
+      {/* ツモ/ロン カットイン（2秒表示） */}
       {showAnnouncement && (
         <AgariAnnouncement text={announcementText} />
       )}
@@ -395,6 +477,14 @@ export const GamePage: React.FC = () => {
           result={gameState.roundResult}
           players={gameState.players}
           onNext={nextRound}
+        />
+      )}
+
+      {/* 実績解除トースト */}
+      {achievementToastIds.length > 0 && (
+        <AchievementToast
+          achievementIds={achievementToastIds}
+          onDone={() => setAchievementToastIds([])}
         />
       )}
     </div>

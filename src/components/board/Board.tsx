@@ -4,6 +4,7 @@ import type { TileId, TileInstance } from '../../core/types/tile.ts';
 import { HandDisplay } from '../hand/HandDisplay.tsx';
 import { DiscardPool } from './DiscardPool.tsx';
 import { CenterInfo } from './CenterInfo.tsx';
+import { WIND_NAMES } from '../../core/types/player.ts';
 import { useWindowSize } from '../../hooks/useWindowSize.ts';
 
 interface BoardProps {
@@ -53,8 +54,8 @@ export const Board: React.FC<BoardProps> = ({
 
     if (isMobile) {
       return {
-        topDiscard: { w: 18, h: 24 },
-        sideDiscard: { w: 15, h: 20 },
+        topDiscard: { w: 16, h: 22 },
+        sideDiscard: { w: 14, h: 19 },
         bottomDiscard: { w: 20, h: 28 },
         topHand: { w: 16, h: 22 },
         sideHand: { w: 13, h: 18 },
@@ -63,8 +64,8 @@ export const Board: React.FC<BoardProps> = ({
     }
     if (isTablet) {
       return {
-        topDiscard: { w: 22, h: 30 },
-        sideDiscard: { w: 18, h: 24 },
+        topDiscard: { w: 20, h: 28 },
+        sideDiscard: { w: 17, h: 23 },
         bottomDiscard: { w: 24, h: 34 },
         topHand: { w: 20, h: 28 },
         sideHand: { w: 15, h: 22 },
@@ -72,8 +73,8 @@ export const Board: React.FC<BoardProps> = ({
       };
     }
     return {
-      topDiscard: { w: 26, h: 36 },
-      sideDiscard: { w: 22, h: 30 },
+      topDiscard: { w: 24, h: 33 },
+      sideDiscard: { w: 20, h: 27 },
       bottomDiscard: { w: 28, h: 38 },
       topHand: { w: 24, h: 34 },
       sideHand: { w: 18, h: 26 },
@@ -83,20 +84,33 @@ export const Board: React.FC<BoardProps> = ({
 
   const { topDiscard, sideDiscard, bottomDiscard } = sizes;
 
-  // 左右の捨て牌エリア
-  const sideDiscardArea = { w: sideDiscard.w * 6, h: sideDiscard.h * 3 };
+  // 左右の捨て牌エリアサイズ（回転後の表示サイズを考慮）
+  // 回転前: 幅 = tileW * 6, 高さ = tileH * 4
+  // 回転後(-90/+90): 幅 = tileH * 4, 高さ = tileW * 6
+  const sideDiscardPreRotateW = sideDiscard.w * 6;
+  const sideDiscardPreRotateH = sideDiscard.h * 4;
+  // 回転後に見える外接矩形
+  const sideDiscardAreaW = sideDiscardPreRotateH;  // 回転後の幅 = 元の高さ
+  const sideDiscardAreaH = sideDiscardPreRotateW;  // 回転後の高さ = 元の幅
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-between p-2 select-none">
-      {/* 上（対面） - 手牌（外側）→ 捨て牌（中央寄り） */}
+      {/* 上（対面） - 名前+手牌（外側）→ 捨て牌（中央寄り） */}
       <div className="flex flex-col items-center gap-0 flex-shrink-0">
-        <HandDisplay
-          hand={players[topIdx].hand}
-          isCurrentPlayer={false}
-          showTiles={false}
-          tileWidth={sizes.topHand.w}
-          tileHeight={sizes.topHand.h}
-        />
+        <div className="flex items-center gap-1">
+          <HandDisplay
+            hand={players[topIdx].hand}
+            isCurrentPlayer={false}
+            showTiles={false}
+            tileWidth={sizes.topHand.w}
+            tileHeight={sizes.topHand.h}
+          />
+          {/* 対面の名前: 手牌の左 */}
+          <div className="text-[10px] sm:text-xs text-gray-300 font-bold whitespace-nowrap px-1">
+            <span className="text-yellow-400">{WIND_NAMES[players[topIdx].seatWind]}</span>
+            <span className="ml-0.5">{players[topIdx].name}</span>
+          </div>
+        </div>
         <div className="flex items-end justify-center" style={{ minHeight: topDiscard.h * 4 }}>
           <DiscardPool
             discards={players[topIdx].discards}
@@ -113,21 +127,30 @@ export const Board: React.FC<BoardProps> = ({
       <div className="flex items-center justify-center w-full max-w-6xl flex-shrink-0">
         {/* 左（上家）- 手牌（左外側）→ 捨て牌（中央寄り） */}
         <div className="flex flex-row items-center gap-0.5 flex-shrink-0">
-          <HandDisplay
-            hand={players[leftIdx].hand}
-            isCurrentPlayer={false}
-            showTiles={false}
-            tileWidth={sizes.sideHand.w}
-            tileHeight={sizes.sideHand.h}
-            vertical={true}
-          />
-          <div style={{ width: sideDiscardArea.w, height: sideDiscardArea.h }} className="flex items-center justify-end">
+          <div className="flex flex-col items-center gap-0.5">
+            <HandDisplay
+              hand={players[leftIdx].hand}
+              isCurrentPlayer={false}
+              showTiles={false}
+              tileWidth={sizes.sideHand.w}
+              tileHeight={sizes.sideHand.h}
+              vertical={true}
+            />
+            {/* 左の名前: 手牌の下 */}
+            <div className="text-[9px] sm:text-[10px] text-gray-300 font-bold whitespace-nowrap">
+              <span className="text-yellow-400">{WIND_NAMES[players[leftIdx].seatWind]}</span>
+              <span className="ml-0.5">{players[leftIdx].name}</span>
+            </div>
+          </div>
+          <div
+            className="flex items-center justify-center"
+            style={{ width: sideDiscardAreaW, height: sideDiscardAreaH }}
+          >
             <DiscardPool
               discards={players[leftIdx].discards}
               riichiDiscardIndex={players[leftIdx].riichiDiscardIndex}
               tileWidth={sideDiscard.w}
               tileHeight={sideDiscard.h}
-              vertical={true}
               highlightLast={highlightLastDiscardPlayer === leftIdx}
               position="left"
             />
@@ -147,25 +170,34 @@ export const Board: React.FC<BoardProps> = ({
 
         {/* 右（下家）- 捨て牌（中央寄り）→ 手牌（右外側） */}
         <div className="flex flex-row items-center gap-0.5 flex-shrink-0">
-          <div style={{ width: sideDiscardArea.w, height: sideDiscardArea.h }} className="flex items-center justify-start">
+          <div
+            className="flex items-center justify-center"
+            style={{ width: sideDiscardAreaW, height: sideDiscardAreaH }}
+          >
             <DiscardPool
               discards={players[rightIdx].discards}
               riichiDiscardIndex={players[rightIdx].riichiDiscardIndex}
               tileWidth={sideDiscard.w}
               tileHeight={sideDiscard.h}
-              vertical={true}
               highlightLast={highlightLastDiscardPlayer === rightIdx}
               position="right"
             />
           </div>
-          <HandDisplay
-            hand={players[rightIdx].hand}
-            isCurrentPlayer={false}
-            showTiles={false}
-            tileWidth={sizes.sideHand.w}
-            tileHeight={sizes.sideHand.h}
-            vertical={true}
-          />
+          <div className="flex flex-col items-center gap-0.5">
+            {/* 右の名前: 手牌の上 */}
+            <div className="text-[9px] sm:text-[10px] text-gray-300 font-bold whitespace-nowrap">
+              <span className="text-yellow-400">{WIND_NAMES[players[rightIdx].seatWind]}</span>
+              <span className="ml-0.5">{players[rightIdx].name}</span>
+            </div>
+            <HandDisplay
+              hand={players[rightIdx].hand}
+              isCurrentPlayer={false}
+              showTiles={false}
+              tileWidth={sizes.sideHand.w}
+              tileHeight={sizes.sideHand.h}
+              vertical={true}
+            />
+          </div>
         </div>
       </div>
 
@@ -180,7 +212,6 @@ export const Board: React.FC<BoardProps> = ({
             try {
               const data = JSON.parse(e.dataTransfer.getData('text/plain'));
               if (data && typeof data.index === 'number' && onDrop) {
-                // 手牌からドロップされた牌を見つける
                 const player = players[bottomIdx];
                 const allTiles = player.hand.tsumo
                   ? [...player.hand.closed, player.hand.tsumo]
@@ -188,7 +219,7 @@ export const Board: React.FC<BoardProps> = ({
                 const tile = allTiles.find(t => t.index === data.index);
                 if (tile) onDrop(tile);
               }
-            } catch {}
+            } catch { /* ignore parse errors from drag data */ }
           }}
         >
           <DiscardPool
@@ -200,18 +231,25 @@ export const Board: React.FC<BoardProps> = ({
             position="bottom"
           />
         </div>
-        <HandDisplay
-          hand={players[bottomIdx].hand}
-          isCurrentPlayer={currentPlayer === bottomIdx && (gameState.phase === 'discard' || gameState.phase === 'riichi_confirm')}
-          selectedTile={selectedTile}
-          onTileClick={onTileClick}
-          tileWidth={sizes.bottomHand.w}
-          tileHeight={sizes.bottomHand.h}
-          showTiles={true}
-          highlightTileIds={highlightTileIds}
-          dimmedTileIds={dimmedTileIds}
-          onDragStart={onDragStart}
-        />
+        <div className="flex items-center gap-1">
+          <HandDisplay
+            hand={players[bottomIdx].hand}
+            isCurrentPlayer={currentPlayer === bottomIdx && (gameState.phase === 'discard' || gameState.phase === 'riichi_confirm')}
+            selectedTile={selectedTile}
+            onTileClick={onTileClick}
+            tileWidth={sizes.bottomHand.w}
+            tileHeight={sizes.bottomHand.h}
+            showTiles={true}
+            highlightTileIds={highlightTileIds}
+            dimmedTileIds={dimmedTileIds}
+            onDragStart={onDragStart}
+          />
+          {/* 自分の名前: 手牌の右 */}
+          <div className="text-[10px] sm:text-xs text-gray-300 font-bold whitespace-nowrap">
+            <span className="text-yellow-400">{WIND_NAMES[players[bottomIdx].seatWind]}</span>
+            <span className="ml-0.5">{players[bottomIdx].name}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

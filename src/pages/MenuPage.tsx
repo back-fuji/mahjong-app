@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import type { GameRules } from '../core/types/game-state.ts';
 import { DEFAULT_RULES } from '../core/types/game-state.ts';
 import { useGameStore } from '../store/gameStore.ts';
+import { useSettingsStore } from '../store/settingsStore.ts';
+import type { AiDifficulty } from '../store/settingsStore.ts';
+import { InstallPrompt } from '../components/pwa/InstallPrompt.tsx';
 
 export const MenuPage: React.FC = () => {
   const startGame = useGameStore(s => s.startGame);
@@ -10,6 +13,7 @@ export const MenuPage: React.FC = () => {
   const [gameType, setGameType] = useState<'tonpu' | 'hanchan'>('hanchan');
   const [hasRedDora, setHasRedDora] = useState(true);
   const [kuitan, setKuitan] = useState(true);
+  const { aiDifficulty, setAiDifficulty } = useSettingsStore();
 
   const handleStart = () => {
     const rules: GameRules = {
@@ -23,9 +27,9 @@ export const MenuPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-green-900">
-      <div className="bg-gray-900/90 rounded-2xl p-8 max-w-sm w-full mx-4 text-white">
-        <h1 className="text-4xl font-bold text-center mb-2 text-yellow-400">
+    <div className="min-h-screen flex items-center justify-center theme-gradient">
+      <div className="theme-bg-card rounded-2xl p-8 max-w-sm w-full mx-4 text-white">
+        <h1 className="text-4xl font-bold text-center mb-2 theme-text-accent">
           麻雀
         </h1>
         <p className="text-center text-gray-400 text-sm mb-8">Japanese Mahjong</p>
@@ -77,6 +81,40 @@ export const MenuPage: React.FC = () => {
               ONにすると、ポンやチーで鳴いた状態でもタンヤオ（断么九）が成立します。OFFの場合、タンヤオは門前（鳴きなし）限定になります。
             </p>
           </div>
+
+          {/* AI難易度 */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span>CPU強さ</span>
+            </div>
+            <div className="flex gap-2">
+              {([
+                { value: 'easy' as AiDifficulty, label: '初級' },
+                { value: 'normal' as AiDifficulty, label: '中級' },
+                { value: 'hard' as AiDifficulty, label: '上級' },
+              ]).map(({ value, label }) => {
+                const isActive = aiDifficulty === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setAiDifficulty(value)}
+                    className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all
+                      ${isActive
+                        ? 'bg-yellow-500 text-black'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+              {aiDifficulty === 'easy' && '初級: ミスあり・防御なし。初心者向け。'}
+              {aiDifficulty === 'normal' && '中級: 効率重視＋基本防御。'}
+              {aiDifficulty === 'hard' && '上級: 高度な防御＋点数状況判断。'}
+            </p>
+          </div>
         </div>
 
         <button
@@ -95,7 +133,7 @@ export const MenuPage: React.FC = () => {
           オンライン対戦
         </button>
 
-        <div className="grid grid-cols-2 gap-2 mt-4">
+        <div className="grid grid-cols-3 gap-2 mt-4">
           <button
             onClick={() => navigate('/settings')}
             className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
@@ -104,11 +142,32 @@ export const MenuPage: React.FC = () => {
             設定
           </button>
           <button
+            onClick={() => navigate('/help')}
+            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+              transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            ヘルプ
+          </button>
+          <button
+            onClick={() => navigate('/yaku')}
+            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+              transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            役一覧
+          </button>
+          <button
             onClick={() => navigate('/tutorial')}
             className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
               transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             チュートリアル
+          </button>
+          <button
+            onClick={() => navigate('/achievements')}
+            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+              transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            実績
           </button>
           <button
             onClick={() => navigate('/history')}
@@ -119,12 +178,15 @@ export const MenuPage: React.FC = () => {
           </button>
           <button
             onClick={() => navigate('/saves')}
-            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+            className="col-span-3 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
               transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             セーブ/ロード
           </button>
         </div>
+
+        {/* PWA インストールプロンプト */}
+        <InstallPrompt />
 
         <p className="text-center text-gray-500 text-xs mt-6">
           4人打ちリーチ麻雀 / CPU 3人と対戦 or オンライン対人戦
