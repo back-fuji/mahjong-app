@@ -16,6 +16,9 @@ export default defineConfig({
       includeAssets: ['icons/icon.svg'],
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        buildPlugins: {
+          vite: [],
+        },
       },
       manifest: {
         name: '麻雀 - Japanese Mahjong',
@@ -47,6 +50,9 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    minify: 'esbuild',
+  },
   server: {
     host: true,
   },

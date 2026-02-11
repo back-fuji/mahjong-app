@@ -362,12 +362,14 @@ export const GamePage: React.FC = () => {
         </button>
       </div>
 
-      {/* ステータスインジケーター（画面最左に配置 — 中央ダイヤと被らない） */}
-      <div className="fixed top-1/2 -translate-y-1/2 left-2 sm:left-3 z-50 pointer-events-none">
-        <div className={`bg-black/40 backdrop-blur-md border ${phaseInfo.borderColor} px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl shadow-lg transition-all`}>
+      {/* ステータスインジケーター
+          SP: 画面下部の捨て牌の近く（bottom-[160px]）、中央寄せ
+          PC: 画面最左、縦中央 */}
+      <div className="fixed bottom-[160px] left-1/2 -translate-x-1/2 sm:bottom-auto sm:left-3 sm:top-1/2 sm:-translate-y-1/2 sm:translate-x-0 z-50 pointer-events-none">
+        <div className={`bg-black/40 backdrop-blur-md border ${phaseInfo.borderColor} px-2 py-1 sm:px-3 sm:py-2 rounded-xl shadow-lg transition-all`}>
           <div className="text-white/90 font-bold text-xs sm:text-sm text-center whitespace-nowrap">{phaseInfo.message}</div>
           {phaseInfo.hint && (
-            <div className="text-white/60 text-[9px] sm:text-[10px] text-center max-w-[80px] sm:max-w-[100px] leading-tight">{phaseInfo.hint}</div>
+            <div className="text-white/60 text-[9px] sm:text-[10px] text-center max-w-[120px] sm:max-w-[100px] leading-tight">{phaseInfo.hint}</div>
           )}
         </div>
       </div>

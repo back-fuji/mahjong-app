@@ -231,21 +231,23 @@ export const Board: React.FC<BoardProps> = ({
             position="bottom"
           />
         </div>
-        <div className="flex items-center gap-1">
-          <HandDisplay
-            hand={players[bottomIdx].hand}
-            isCurrentPlayer={currentPlayer === bottomIdx && (gameState.phase === 'discard' || gameState.phase === 'riichi_confirm')}
-            selectedTile={selectedTile}
-            onTileClick={onTileClick}
-            tileWidth={sizes.bottomHand.w}
-            tileHeight={sizes.bottomHand.h}
-            showTiles={true}
-            highlightTileIds={highlightTileIds}
-            dimmedTileIds={dimmedTileIds}
-            onDragStart={onDragStart}
-          />
+        <div className="flex items-center gap-1 max-w-full w-full px-1">
+          <div className="flex-1 min-w-0">
+            <HandDisplay
+              hand={players[bottomIdx].hand}
+              isCurrentPlayer={currentPlayer === bottomIdx && (gameState.phase === 'discard' || gameState.phase === 'riichi_confirm')}
+              selectedTile={selectedTile}
+              onTileClick={onTileClick}
+              tileWidth={sizes.bottomHand.w}
+              tileHeight={sizes.bottomHand.h}
+              showTiles={true}
+              highlightTileIds={highlightTileIds}
+              dimmedTileIds={dimmedTileIds}
+              onDragStart={onDragStart}
+            />
+          </div>
           {/* 自分の名前: 手牌の右 */}
-          <div className="text-[10px] sm:text-xs text-gray-300 font-bold whitespace-nowrap">
+          <div className="text-[10px] sm:text-xs text-gray-300 font-bold whitespace-nowrap flex-shrink-0">
             <span className="text-yellow-400">{WIND_NAMES[players[bottomIdx].seatWind]}</span>
             <span className="ml-0.5">{players[bottomIdx].name}</span>
           </div>
