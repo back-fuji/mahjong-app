@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Hand } from '../../core/types/hand.ts';
-import type { TileInstance } from '../../core/types/tile.ts';
+import type { TileId, TileInstance } from '../../core/types/tile.ts';
 import { MeldType } from '../../core/types/meld.ts';
 import { TileSVG } from '../tile/TileSVG.tsx';
 
@@ -14,6 +14,8 @@ interface HandDisplayProps {
   showTiles?: boolean;
   /** 縦並び表示（左右のプレイヤー用） */
   vertical?: boolean;
+  /** 鳴き対象のハイライト牌ID */
+  highlightTileIds?: TileId[];
 }
 
 export const HandDisplay: React.FC<HandDisplayProps> = ({
@@ -25,7 +27,9 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
   tileHeight = 56,
   showTiles = true,
   vertical = false,
+  highlightTileIds,
 }) => {
+  const highlightSet = highlightTileIds ? new Set(highlightTileIds) : null;
   const hasMelds = hand.melds.length > 0;
 
   if (vertical) {
@@ -100,6 +104,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
             height={tileHeight}
             faceDown={!showTiles}
             selected={selectedTile?.index === tile.index}
+            highlighted={!!highlightSet?.has(tile.id)}
             onClick={isCurrentPlayer && onTileClick ? () => onTileClick(tile) : undefined}
           />
         ))}
@@ -114,6 +119,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
             height={tileHeight}
             faceDown={!showTiles}
             selected={selectedTile?.index === hand.tsumo.index}
+            highlighted={!!highlightSet?.has(hand.tsumo.id)}
             onClick={isCurrentPlayer && onTileClick ? () => onTileClick(hand.tsumo!) : undefined}
           />
         </div>

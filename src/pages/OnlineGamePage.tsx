@@ -6,7 +6,6 @@ import { HandDisplay } from '../components/hand/HandDisplay.tsx';
 import { CenterInfo } from '../components/board/CenterInfo.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
-import { WIND_NAMES } from '../core/types/player.ts';
 import { TILE_SHORT } from '../core/types/tile.ts';
 
 /** フェーズに応じた状態メッセージ */
@@ -89,12 +88,12 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
 
   return (
     <div className="w-full h-screen bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none">
-      {/* ステータスインジケーター */}
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50">
-        <div className={`${phaseInfo.color} px-6 py-2 rounded-full shadow-lg transition-all`}>
-          <div className="text-white font-bold text-lg text-center">{phaseInfo.message}</div>
+      {/* ステータスインジケーター（グラスUI） */}
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+        <div className="bg-black/20 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full shadow-lg transition-all">
+          <div className="text-white/90 font-bold text-lg text-center">{phaseInfo.message}</div>
           {phaseInfo.hint && (
-            <div className="text-white/80 text-sm text-center">{phaseInfo.hint}</div>
+            <div className="text-white/60 text-sm text-center">{phaseInfo.hint}</div>
           )}
         </div>
       </div>
@@ -132,14 +131,14 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
           />
         </div>
 
-        <div className="flex flex-col items-center gap-3">
-          <CenterInfo round={round} players={players} currentPlayer={gameState.currentPlayer} myIndex={myIndex} />
-          <div className="flex items-center gap-2">
-            <span className="text-base text-gray-300 mr-2">ドラ</span>
-            {gameState.doraIndicators?.map((t: TileInstance, i: number) => (
-              <TileSVG key={i} tile={t} width={36} height={50} />
-            ))}
-          </div>
+        <div className="flex flex-col items-center">
+          <CenterInfo
+            round={round}
+            players={players}
+            currentPlayer={gameState.currentPlayer}
+            doraIndicators={gameState.doraIndicators || []}
+            myIndex={myIndex}
+          />
         </div>
 
         {/* 右（下家）- 捨て牌と手牌を縦並び */}
@@ -200,7 +199,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         onKyuushu={() => sendAction({ type: 'kyuushu' })}
       />
 
-      {/* 打牌ボタン - 左下に配置 */}
+      {/* 打牌ボタン - 左下グラスUI */}
       {selectedTile && actions.includes('discard') && (
         <div className="fixed bottom-6 left-6 z-40">
           <button
@@ -208,7 +207,9 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
               sendAction({ type: 'discard', tileIndex: selectedTile.index });
               setSelectedTile(null);
             }}
-            className="px-10 py-4 bg-orange-500 hover:bg-orange-600 rounded-2xl text-white font-bold text-xl shadow-xl transition-all hover:scale-105 active:scale-95 ring-4 ring-orange-300/50"
+            className="px-10 py-4 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
+              text-white font-bold text-xl shadow-lg transition-all hover:bg-white/20
+              hover:scale-105 active:scale-95"
           >
             打牌
           </button>

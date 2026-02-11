@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { GameRules } from '../core/types/game-state.ts';
 import { DEFAULT_RULES } from '../core/types/game-state.ts';
 import { useGameStore } from '../store/gameStore.ts';
 
 export const MenuPage: React.FC = () => {
   const startGame = useGameStore(s => s.startGame);
+  const navigate = useNavigate();
   const [gameType, setGameType] = useState<'tonpu' | 'hanchan'>('hanchan');
   const [hasRedDora, setHasRedDora] = useState(true);
   const [kuitan, setKuitan] = useState(true);
@@ -17,6 +19,7 @@ export const MenuPage: React.FC = () => {
       kuitan,
     };
     startGame(rules);
+    navigate('/game');
   };
 
   return (
@@ -70,7 +73,7 @@ export const MenuPage: React.FC = () => {
         </button>
 
         <button
-          onClick={() => useGameStore.getState().setScreen('lobby')}
+          onClick={() => navigate('/lobby')}
           className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-lg font-bold
             transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg"
         >

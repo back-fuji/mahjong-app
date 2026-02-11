@@ -13,6 +13,8 @@ interface TileSVGProps {
   selected?: boolean;
   dimmed?: boolean;
   sideways?: boolean;
+  /** 鳴き対象のハイライト（青い光） */
+  highlighted?: boolean;
   className?: string;
 }
 
@@ -43,6 +45,7 @@ export const TileSVG: React.FC<TileSVGProps> = ({
   selected = false,
   dimmed = false,
   sideways = false,
+  highlighted = false,
   className = '',
 }) => {
   const tileId = tile?.id ?? propTileId ?? 0;
@@ -65,7 +68,11 @@ export const TileSVG: React.FC<TileSVGProps> = ({
 
   // 選択・クリック可能状態のスタイル
   const isClickable = !!onClick;
-  const glowFilter = selected ? 'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f59e0b)' : undefined;
+  const glowFilter = selected
+    ? 'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f59e0b)'
+    : highlighted
+      ? 'drop-shadow(0 0 6px #22d3ee) drop-shadow(0 0 12px #06b6d4)'
+      : undefined;
 
   return (
     <svg
@@ -74,6 +81,7 @@ export const TileSVG: React.FC<TileSVGProps> = ({
       viewBox={`0 0 ${width} ${height}`}
       className={`${className} ${isClickable ? 'cursor-pointer hover:brightness-110' : ''}`}
       onClick={onClick}
+      {...(isClickable ? { 'data-interactive-tile': 'true' } : {})}
       style={{
         transition: 'transform 0.15s ease-out, filter 0.15s ease-out',
         transform: `${sideways ? 'rotate(90deg) ' : ''}${selected ? 'translateY(-12px) scale(1.05)' : ''}`,
@@ -84,6 +92,11 @@ export const TileSVG: React.FC<TileSVGProps> = ({
       {selected && (
         <rect x="-2" y="-2" width={width + 4} height={height + 4} rx="5"
           fill="none" stroke="#fbbf24" strokeWidth="3" />
+      )}
+      {/* 鳴き対象のハイライト */}
+      {highlighted && !selected && (
+        <rect x="-2" y="-2" width={width + 4} height={height + 4} rx="5"
+          fill="none" stroke="#22d3ee" strokeWidth="2" opacity="0.8" />
       )}
 
       {/* 牌の背景 */}

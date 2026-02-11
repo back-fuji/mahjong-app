@@ -57,6 +57,8 @@ export interface AvailableActions {
   kanTiles: TileId[];
   canSkip: boolean;
   canKyuushu: boolean;
+  /** 鳴き対象の手牌TileId（ハイライト用） */
+  callHighlightTiles: TileId[];
 }
 
 function delay(ms: number): Promise<void> {
@@ -503,7 +505,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       const newState = advanceRound(state);
 
       if (newState.phase === 'game_result') {
-        set({ gameState: newState, screen: 'result' });
+        set({ gameState: newState });
         return;
       }
 
@@ -528,7 +530,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         canDiscard: false, canTsumoAgari: false, canRon: false,
         canRiichi: false, riichiTiles: [], canChi: false, chiOptions: [],
         canPon: false, canKan: false, kanTiles: [], canSkip: false,
-        canKyuushu: false,
+        canKyuushu: false, callHighlightTiles: [],
       };
 
       if (!state) return empty;
@@ -570,6 +572,12 @@ export const useGameStore = create<GameStore>((set, get) => {
           chiOpts = [];
         }
 
+        // 鳴き対象の手牌をハイライト用に集約
+        const highlightSet = new Set<TileId>();
+        if (ponOpt) ponOpt.tiles.forEach(t => highlightSet.add(t));
+        chiOpts.forEach(opt => opt.tiles.forEach(t => highlightSet.add(t)));
+        if (minkanOpt) minkanOpt.tiles.forEach(t => highlightSet.add(t));
+
         return {
           ...empty,
           canRon: canRonFlag,
@@ -579,6 +587,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           canKan: !!minkanOpt,
           kanTiles: minkanOpt ? [minkanOpt.calledTile] : [],
           canSkip: true,
+          callHighlightTiles: [...highlightSet],
         };
       }
 

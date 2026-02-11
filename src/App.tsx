@@ -1,59 +1,62 @@
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useGameStore } from './store/gameStore.ts';
 import { MenuPage } from './pages/MenuPage.tsx';
 import { GamePage } from './pages/GamePage.tsx';
+import { LobbyPage } from './pages/LobbyPage.tsx';
 import { GameResultScreen } from './components/result/GameResultScreen.tsx';
-import { Lobby } from './components/lobby/Lobby.tsx';
-import { OnlineGamePage } from './pages/OnlineGamePage.tsx';
-import { useSocket } from './hooks/useSocket.ts';
 
 function App() {
-  const screen = useGameStore(s => s.screen);
+  return (
+    <Routes>
+      <Route path="/" element={<MenuPage />} />
+      <Route path="/game" element={<GameRoute />} />
+      <Route path="/lobby" element={<LobbyPage />} />
+      <Route path="/result" element={<ResultRoute />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+/** CPU対戦ルート: ゲームが未開始なら自動で開始 */
+function GameRoute() {
   const gameState = useGameStore(s => s.gameState);
   const startGame = useGameStore(s => s.startGame);
-  const backToMenu = useGameStore(s => s.backToMenu);
-  const setScreen = useGameStore(s => s.setScreen);
 
-  const socket = useSocket();
-
-  if (screen === 'menu') {
-    return <MenuPage />;
-  }
-
-  if (screen === 'lobby') {
-    if (socket.gameState) {
-      return (
-        <OnlineGamePage
-          gameState={socket.gameState}
-          sendAction={socket.sendAction}
-        />
-      );
+  useEffect(() => {
+    if (!gameState) {
+      startGame();
     }
-    return (
-      <Lobby
-        connected={socket.connected}
-        roomId={socket.roomId}
-        players={socket.players}
-        error={socket.error}
-        onCreateRoom={socket.createRoom}
-        onJoinRoom={socket.joinRoom}
-        onStartGame={socket.startGame}
-        onGetRooms={socket.getRooms}
-        onBack={() => setScreen('menu')}
-      />
-    );
-  }
+  }, [gameState, startGame]);
 
-  if (screen === 'result' && gameState) {
-    return (
-      <GameResultScreen
-        players={gameState.players}
-        onPlayAgain={() => startGame(gameState.rules)}
-        onBackToMenu={backToMenu}
-      />
-    );
-  }
+  if (!gameState) return null;
 
   return <GamePage />;
+}
+
+/** 結果画面ルート */
+function ResultRoute() {
+  const navigate = useNavigate();
+  const gameState = useGameStore(s => s.gameState);
+  const startGame = useGameStore(s => s.startGame);
+
+  if (!gameState) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <GameResultScreen
+      players={gameState.players}
+      onPlayAgain={() => {
+        startGame(gameState.rules);
+        navigate('/game');
+      }}
+      onBackToMenu={() => {
+        useGameStore.getState().backToMenu();
+        navigate('/');
+      }}
+    />
+  );
 }
 
 export default App;

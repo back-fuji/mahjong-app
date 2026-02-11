@@ -525,8 +525,9 @@ export function processMinKan(state: GameState, callerIdx: number): GameState {
     state.doraIndicators, state.uraDoraIndicators,
   );
 
-  caller.hand = { ...caller.hand, tsumo: rinResult.tile };
-  players[callerIdx] = caller;
+  const updatedCaller = { ...players[callerIdx] };
+  updatedCaller.hand = { ...updatedCaller.hand, tsumo: rinResult.tile };
+  players[callerIdx] = updatedCaller;
 
   return {
     ...state,
