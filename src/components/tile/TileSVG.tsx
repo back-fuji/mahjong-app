@@ -13,7 +13,7 @@ interface TileSVGProps {
   selected?: boolean;
   dimmed?: boolean;
   sideways?: boolean;
-  /** 鳴き対象のハイライト（青い光） */
+  /** 鳴き対象のハイライト（オレンジの光） */
   highlighted?: boolean;
   className?: string;
 }
@@ -71,7 +71,7 @@ export const TileSVG: React.FC<TileSVGProps> = ({
   const glowFilter = selected
     ? 'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f59e0b)'
     : highlighted
-      ? 'drop-shadow(0 0 6px #22d3ee) drop-shadow(0 0 12px #06b6d4)'
+      ? 'drop-shadow(0 0 6px #fb923c) drop-shadow(0 0 12px #f97316)'
       : undefined;
 
   return (
@@ -93,10 +93,10 @@ export const TileSVG: React.FC<TileSVGProps> = ({
         <rect x="-2" y="-2" width={width + 4} height={height + 4} rx="5"
           fill="none" stroke="#fbbf24" strokeWidth="3" />
       )}
-      {/* 鳴き対象のハイライト */}
+      {/* 鳴き対象のハイライト（オレンジ） */}
       {highlighted && !selected && (
         <rect x="-2" y="-2" width={width + 4} height={height + 4} rx="5"
-          fill="none" stroke="#22d3ee" strokeWidth="2" opacity="0.8" />
+          fill="none" stroke="#f97316" strokeWidth="2" opacity="0.9" />
       )}
 
       {/* 牌の背景 */}

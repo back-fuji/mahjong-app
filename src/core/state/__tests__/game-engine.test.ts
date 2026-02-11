@@ -48,10 +48,14 @@ function makePlayer(overrides: Partial<Player> = {}, idx: number = 0): Player {
     isDoubleRiichi: false,
     isIppatsu: false,
     riichiTurn: -1,
+    riichiDiscardIndex: -1,
     isMenzen: true,
     seatWind: idx as Wind,
     isHuman: idx === 0,
     connected: true,
+    isFuriten: false,
+    tempFuriten: false,
+    kuikaeDisallowedTiles: [],
     ...overrides,
   };
 }

@@ -107,7 +107,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         </div>
         <DiscardPool
           discards={players[topIdx].discards}
-          riichiTurn={-1}
+          riichiDiscardIndex={-1}
           tileWidth={32}
           tileHeight={44}
         />
@@ -124,7 +124,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
           </div>
           <DiscardPool 
             discards={players[leftIdx].discards} 
-            riichiTurn={-1} 
+            riichiDiscardIndex={-1} 
             tileWidth={28} 
             tileHeight={38} 
             vertical={true} 
@@ -145,7 +145,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         <div className="flex flex-row items-center gap-1">
           <DiscardPool 
             discards={players[rightIdx].discards} 
-            riichiTurn={-1} 
+            riichiDiscardIndex={-1} 
             tileWidth={28} 
             tileHeight={38} 
             vertical={true} 
@@ -162,7 +162,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       <div className="flex flex-col items-center gap-1">
         <DiscardPool 
           discards={players[bottomIdx].discards} 
-          riichiTurn={-1} 
+          riichiDiscardIndex={-1} 
           tileWidth={36} 
           tileHeight={50} 
         />

@@ -4,6 +4,11 @@ import { useGameStore } from './store/gameStore.ts';
 import { MenuPage } from './pages/MenuPage.tsx';
 import { GamePage } from './pages/GamePage.tsx';
 import { LobbyPage } from './pages/LobbyPage.tsx';
+import { SettingsPage } from './pages/SettingsPage.tsx';
+import { TutorialPage } from './pages/TutorialPage.tsx';
+import { HistoryPage } from './pages/HistoryPage.tsx';
+import { SaveLoadPage } from './pages/SaveLoadPage.tsx';
+import { ReplayPage } from './pages/ReplayPage.tsx';
 import { GameResultScreen } from './components/result/GameResultScreen.tsx';
 
 function App() {
@@ -13,6 +18,11 @@ function App() {
       <Route path="/game" element={<GameRoute />} />
       <Route path="/lobby" element={<LobbyPage />} />
       <Route path="/result" element={<ResultRoute />} />
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/tutorial" element={<TutorialPage />} />
+      <Route path="/history" element={<HistoryPage />} />
+      <Route path="/saves" element={<SaveLoadPage />} />
+      <Route path="/replay/:id" element={<ReplayPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

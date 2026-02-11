@@ -30,38 +30,53 @@ export const MenuPage: React.FC = () => {
         </h1>
         <p className="text-center text-gray-400 text-sm mb-8">Japanese Mahjong</p>
 
-        <div className="space-y-4 mb-8">
-          <div className="flex items-center justify-between">
-            <span>ゲーム種別</span>
-            <select
-              value={gameType}
-              onChange={(e) => setGameType(e.target.value as 'tonpu' | 'hanchan')}
-              className="bg-gray-800 rounded px-3 py-1 text-sm"
-            >
-              <option value="hanchan">半荘戦</option>
-              <option value="tonpu">東風戦</option>
-            </select>
+        <div className="space-y-5 mb-8">
+          <div>
+            <div className="flex items-center justify-between">
+              <span>ゲーム種別</span>
+              <select
+                value={gameType}
+                onChange={(e) => setGameType(e.target.value as 'tonpu' | 'hanchan')}
+                className="bg-gray-800 rounded px-3 py-1 text-sm"
+              >
+                <option value="hanchan">半荘戦</option>
+                <option value="tonpu">東風戦</option>
+              </select>
+            </div>
+            <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+              半荘戦は東場・南場の計8局（親が2周）、東風戦は東場のみ4局の短期決戦です。
+            </p>
           </div>
 
-          <label className="flex items-center justify-between cursor-pointer">
-            <span>赤ドラ</span>
-            <input
-              type="checkbox"
-              checked={hasRedDora}
-              onChange={(e) => setHasRedDora(e.target.checked)}
-              className="w-5 h-5 accent-yellow-500"
-            />
-          </label>
+          <div>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span>赤ドラ</span>
+              <input
+                type="checkbox"
+                checked={hasRedDora}
+                onChange={(e) => setHasRedDora(e.target.checked)}
+                className="w-5 h-5 accent-yellow-500"
+              />
+            </label>
+            <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+              各スート（萬子・筒子・索子）の5に1枚ずつ赤牌を入れます。赤牌はドラとして1翻加算されます。
+            </p>
+          </div>
 
-          <label className="flex items-center justify-between cursor-pointer">
-            <span>喰いタン</span>
-            <input
-              type="checkbox"
-              checked={kuitan}
-              onChange={(e) => setKuitan(e.target.checked)}
-              className="w-5 h-5 accent-yellow-500"
-            />
-          </label>
+          <div>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span>喰いタン</span>
+              <input
+                type="checkbox"
+                checked={kuitan}
+                onChange={(e) => setKuitan(e.target.checked)}
+                className="w-5 h-5 accent-yellow-500"
+              />
+            </label>
+            <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+              ONにすると、ポンやチーで鳴いた状態でもタンヤオ（断么九）が成立します。OFFの場合、タンヤオは門前（鳴きなし）限定になります。
+            </p>
+          </div>
         </div>
 
         <button
@@ -79,6 +94,37 @@ export const MenuPage: React.FC = () => {
         >
           オンライン対戦
         </button>
+
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <button
+            onClick={() => navigate('/settings')}
+            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+              transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            設定
+          </button>
+          <button
+            onClick={() => navigate('/tutorial')}
+            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+              transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            チュートリアル
+          </button>
+          <button
+            onClick={() => navigate('/history')}
+            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+              transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            対局履歴
+          </button>
+          <button
+            onClick={() => navigate('/saves')}
+            className="py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium
+              transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            セーブ/ロード
+          </button>
+        </div>
 
         <p className="text-center text-gray-500 text-xs mt-6">
           4人打ちリーチ麻雀 / CPU 3人と対戦 or オンライン対人戦

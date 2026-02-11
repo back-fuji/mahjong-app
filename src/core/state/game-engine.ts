@@ -7,7 +7,7 @@ import type { GameAction } from '../types/action.ts';
 import type { Meld, CallOption } from '../types/meld.ts';
 import { MeldType } from '../types/meld.ts';
 import { buildWall, dealTiles, drawRinshan } from '../wall/wall.ts';
-import { toCount34, sortTiles, emptyCount34, countDora, countRedDora, isYaochu, isKaze } from '../tile/tile-utils.ts';
+import { toCount34, sortTiles, emptyCount34, countDora, countRedDora, isYaochu, isKaze, getSuit, SuitType, suitStart } from '../tile/tile-utils.ts';
 import { getHandCounts, removeTileFromHand } from '../hand/hand-utils.ts';
 import { checkAgari, getWaitingTiles, isTenpai } from '../agari/agari.ts';
 import { getChiOptions, getPonOption, getMinKanOption, getAnKanTiles, getShouMinKanTiles } from '../meld/meld-utils.ts';
@@ -66,8 +66,12 @@ export function startRound(state: GameState): GameState {
     isDoubleRiichi: false,
     isIppatsu: false,
     riichiTurn: -1,
+    riichiDiscardIndex: -1,
     isMenzen: true,
     seatWind: ((i - state.round.kyoku % 4 + 4) % 4) as Wind,
+    isFuriten: false,
+    tempFuriten: false,
+    kuikaeDisallowedTiles: [],
   }));
 
   // 親 (東家) のインデックス
@@ -107,6 +111,10 @@ export function processTsumo(state: GameState): GameState {
   const players = [...state.players];
   const player = { ...players[playerIdx] };
   player.hand = { ...player.hand, tsumo: tile };
+  // 同巡フリテンリセット（自分のツモが来たらリセット）
+  player.tempFuriten = false;
+  // 喰い替え禁止リセット（ツモが来たので制限解除）
+  player.kuikaeDisallowedTiles = [];
   players[playerIdx] = player;
 
   return {
@@ -205,7 +213,13 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
     player.isIppatsu = false;
   }
 
+  // 捨て牌フリテン更新: 自分の捨て牌に待ち牌が含まれているか
+  player.isFuriten = checkDiscardFuriten(player);
+
   players[playerIdx] = player;
+
+  // 同巡フリテンリセット: このプレイヤーが打牌したので同巡フリテンをリセット
+  players[playerIdx] = { ...players[playerIdx], tempFuriten: false };
 
   // 他家の鳴き・ロンチェック
   const callOpts = new Map<number, CallOption[]>();
@@ -222,9 +236,12 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
     tempCounts[tile.id]++;
     const agari = checkAgari(tempCounts, otherPlayer.hand.melds);
     if (agari) {
-      // ロン可能 (フリテンチェックは簡略化)
-      ronCount++;
-      opts.push({ type: 'ron', tiles: [], calledTile: tile.id });
+      // フリテンチェック: 捨て牌フリテン or 同巡フリテン or リーチ後フリテンならロン不可
+      const isFuritenRon = otherPlayer.isFuriten || otherPlayer.tempFuriten;
+      if (!isFuritenRon) {
+        ronCount++;
+        opts.push({ type: 'ron', tiles: [], calledTile: tile.id });
+      }
     }
 
     // ポンチェック
@@ -291,6 +308,8 @@ export function processRiichi(state: GameState, tile: TileInstance): GameState {
   player.isRiichi = true;
   player.isIppatsu = true;
   player.riichiTurn = state.round.turn;
+  // リーチ宣言牌は次の打牌（= 現在のdiscards.length番目）になる
+  player.riichiDiscardIndex = player.discards.length;
 
   if (state.round.isFirstTurn) {
     player.isDoubleRiichi = true;
@@ -402,6 +421,8 @@ export function processPon(state: GameState, callerIdx: number): GameState {
     tsumo: undefined,
   };
   caller.isMenzen = false;
+  // ポンの喰い替え禁止: 鳴いた牌と同じIDを禁止
+  caller.kuikaeDisallowedTiles = [discardTile.id];
   players[callerIdx] = caller;
 
   // 全員の一発消し
@@ -450,12 +471,37 @@ export function processChi(state: GameState, callerIdx: number, tiles: TileId[])
     fromPlayer: 3,
   };
 
+  // 喰い替え禁止牌の計算
+  const kuikaeDisallowed: number[] = [];
+  const calledId = discardTile.id;
+  const suit = getSuit(calledId);
+  if (suit !== SuitType.Jihai) {
+    // 鳴いた牌と同じ牌IDは禁止
+    kuikaeDisallowed.push(calledId);
+    // スジの喰い替え: 順子の端にいる場合、反対側のスジ牌も禁止
+    const meldIds = meldTiles.map(t => t.id).sort((a, b) => a - b);
+    const base = suitStart(suit);
+    const nums = meldIds.map(id => id - base); // 0-8
+    // 例: 1-2-3 で 3 を鳴いたら → 4 は禁止 (not: 3は既に禁止)
+    // 例: 7-8-9 で 7 を鳴いたら → 6 は禁止
+    const calledNum = calledId - base;
+    if (calledNum === nums[0] && nums[2] + 1 <= 8) {
+      // 鳴いた牌が順子の左端 → 右端+1が禁止
+      kuikaeDisallowed.push(base + nums[2] + 1);
+    }
+    if (calledNum === nums[2] && nums[0] - 1 >= 0) {
+      // 鳴いた牌が順子の右端 → 左端-1が禁止
+      kuikaeDisallowed.push(base + nums[0] - 1);
+    }
+  }
+
   caller.hand = {
     closed: sortTiles(newClosed),
     melds: [...caller.hand.melds, meld],
     tsumo: undefined,
   };
   caller.isMenzen = false;
+  caller.kuikaeDisallowedTiles = kuikaeDisallowed;
   players[callerIdx] = caller;
 
   for (let i = 0; i < 4; i++) {
@@ -873,6 +919,44 @@ export function canShouMinKan(state: GameState, playerIdx: number): TileId[] {
     : player.hand.closed;
   const counts = toCount34(allClosed);
   return getShouMinKanTiles(counts, player.hand.melds);
+}
+
+// ================== フリテン判定 ==================
+
+/**
+ * ロンを見逃した場合の同巡フリテン設定
+ * リーチ中の見逃しは永久フリテン（isFuriten=trueが維持される）
+ */
+export function applyRonSkipFuriten(state: GameState, playerIdx: number): GameState {
+  const players = [...state.players];
+  const player = { ...players[playerIdx] };
+
+  if (player.isRiichi) {
+    // リーチ後の見逃しは永久フリテン
+    player.isFuriten = true;
+  } else {
+    // 同巡フリテン（次の自分のツモでリセット）
+    player.tempFuriten = true;
+  }
+
+  players[playerIdx] = player;
+  return { ...state, players };
+}
+
+/** 捨て牌フリテン: 自分の待ち牌が自分の捨て牌にあるか */
+function checkDiscardFuriten(player: Player): boolean {
+  const counts = toCount34(player.hand.closed);
+  const totalClosed = counts.reduce((a, b) => a + b, 0);
+  const meldCount = player.hand.melds.length;
+  const expectedClosed = 13 - meldCount * 3;
+  if (totalClosed !== expectedClosed) return false;
+
+  const waits = getWaitingTiles(counts, player.hand.melds);
+  if (waits.length === 0) return false;
+
+  // 自分の捨て牌に待ち牌が含まれているか
+  const discardIds = new Set(player.discards.map(t => t.id));
+  return waits.some(w => discardIds.has(w));
 }
 
 // ================== 流局判定 ==================

@@ -16,6 +16,10 @@ interface HandDisplayProps {
   vertical?: boolean;
   /** 鳴き対象のハイライト牌ID */
   highlightTileIds?: TileId[];
+  /** 喰い替え禁止牌ID（dimmed表示用） */
+  dimmedTileIds?: TileId[];
+  /** ドラッグ開始時のコールバック */
+  onDragStart?: (tile: TileInstance) => void;
 }
 
 export const HandDisplay: React.FC<HandDisplayProps> = ({
@@ -28,8 +32,23 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
   showTiles = true,
   vertical = false,
   highlightTileIds,
+  dimmedTileIds,
+  onDragStart,
 }) => {
   const highlightSet = highlightTileIds ? new Set(highlightTileIds) : null;
+  const dimmedSet = dimmedTileIds ? new Set(dimmedTileIds) : null;
+
+  const makeDragProps = (tile: TileInstance) => {
+    if (!isCurrentPlayer || !onDragStart || dimmedSet?.has(tile.id)) return {};
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ index: tile.index, id: tile.id }));
+        e.dataTransfer.effectAllowed = 'move';
+        onDragStart(tile);
+      },
+    };
+  };
   const hasMelds = hand.melds.length > 0;
 
   if (vertical) {
@@ -97,22 +116,24 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
       {/* 門前手牌 */}
       <div className="flex items-end">
         {hand.closed.map((tile) => (
-          <TileSVG
-            key={tile.index}
-            tile={tile}
-            width={tileWidth}
-            height={tileHeight}
-            faceDown={!showTiles}
-            selected={selectedTile?.index === tile.index}
-            highlighted={!!highlightSet?.has(tile.id)}
-            onClick={isCurrentPlayer && onTileClick ? () => onTileClick(tile) : undefined}
-          />
+          <div key={tile.index} {...makeDragProps(tile)} style={{ cursor: isCurrentPlayer && !dimmedSet?.has(tile.id) ? 'grab' : undefined }}>
+            <TileSVG
+              tile={tile}
+              width={tileWidth}
+              height={tileHeight}
+              faceDown={!showTiles}
+              selected={selectedTile?.index === tile.index}
+              highlighted={!!highlightSet?.has(tile.id)}
+              dimmed={!!dimmedSet?.has(tile.id)}
+              onClick={isCurrentPlayer && onTileClick && !dimmedSet?.has(tile.id) ? () => onTileClick(tile) : undefined}
+            />
+          </div>
         ))}
       </div>
 
       {/* ツモ牌（少し離す） */}
       {hand.tsumo && (
-        <div className="ml-4">
+        <div className="ml-4" {...makeDragProps(hand.tsumo)} style={{ cursor: isCurrentPlayer && !dimmedSet?.has(hand.tsumo.id) ? 'grab' : undefined }}>
           <TileSVG
             tile={hand.tsumo}
             width={tileWidth}
@@ -120,7 +141,8 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
             faceDown={!showTiles}
             selected={selectedTile?.index === hand.tsumo.index}
             highlighted={!!highlightSet?.has(hand.tsumo.id)}
-            onClick={isCurrentPlayer && onTileClick ? () => onTileClick(hand.tsumo!) : undefined}
+            dimmed={!!dimmedSet?.has(hand.tsumo.id)}
+            onClick={isCurrentPlayer && onTileClick && !dimmedSet?.has(hand.tsumo.id) ? () => onTileClick(hand.tsumo!) : undefined}
           />
         </div>
       )}

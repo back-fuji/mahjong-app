@@ -13,3 +13,26 @@ body {
   width: 100%;
   height: 100vh;
 }
+
+/* 和了アナウンスアニメーション */
+@keyframes agari-announce {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  50% {
+    transform: scale(1.0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.0);
+  }
+}
+
+.animate-agari-announce {
+  animation: agari-announce 0.5s ease-out forwards;
+}

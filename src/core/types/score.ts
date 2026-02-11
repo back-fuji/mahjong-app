@@ -32,7 +32,7 @@ export interface PaymentInfo {
 }
 
 /** 点数レベル */
-export type ScoreLevel = 'normal' | 'mangan' | 'haneman' | 'baiman' | 'sanbaiman' | 'yakuman';
+export type ScoreLevel = 'normal' | 'mangan' | 'haneman' | 'baiman' | 'sanbaiman' | 'yakuman' | 'double_yakuman';
 
 /** 点数レベル名 */
 export const SCORE_LEVEL_NAMES: Record<ScoreLevel, string> = {
@@ -42,4 +42,5 @@ export const SCORE_LEVEL_NAMES: Record<ScoreLevel, string> = {
   baiman: '倍満',
   sanbaiman: '三倍満',
   yakuman: '役満',
+  double_yakuman: 'ダブル役満',
 };

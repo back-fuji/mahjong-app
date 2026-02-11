@@ -190,7 +190,7 @@ function buildScoreResult(
     // ドラ
     const doraCnt = countDora(ctx.closedCounts, doraIndicators);
     if (doraCnt > 0) {
-      yaku.push({ id: 'tanyao', name: `ドラ ${doraCnt}`, han: doraCnt, hanOpen: doraCnt, isYakuman: false });
+      yaku.push({ id: 'tanyao', name: `ドラ ${doraCnt}`, reading: 'ドラ', han: doraCnt, hanOpen: doraCnt, isYakuman: false });
       han += doraCnt;
     }
 
@@ -198,7 +198,7 @@ function buildScoreResult(
     if (ctx.isRiichi || ctx.isDoubleRiichi) {
       const uraDoraCnt = countDora(ctx.closedCounts, uraDoraIndicators);
       if (uraDoraCnt > 0) {
-        yaku.push({ id: 'tanyao', name: `裏ドラ ${uraDoraCnt}`, han: uraDoraCnt, hanOpen: -1, isYakuman: false });
+        yaku.push({ id: 'tanyao', name: `裏ドラ ${uraDoraCnt}`, reading: 'ウラドラ', han: uraDoraCnt, hanOpen: -1, isYakuman: false });
         han += uraDoraCnt;
       }
     }
@@ -206,7 +206,7 @@ function buildScoreResult(
     // 赤ドラ
     const redDoraCnt = countRedDora(allTiles);
     if (redDoraCnt > 0) {
-      yaku.push({ id: 'tanyao', name: `赤ドラ ${redDoraCnt}`, han: redDoraCnt, hanOpen: redDoraCnt, isYakuman: false });
+      yaku.push({ id: 'tanyao', name: `赤ドラ ${redDoraCnt}`, reading: 'アカドラ', han: redDoraCnt, hanOpen: redDoraCnt, isYakuman: false });
       han += redDoraCnt;
     }
   }
@@ -215,7 +215,7 @@ function buildScoreResult(
   const payment = calculatePayment(basePoints, isOya, ctx.isTsumo, honba);
 
   let label = '';
-  const level = getScoreLevel(han, fu, isYakuman);
+  const level = getScoreLevel(han, fu, isYakuman, yakumanCount);
   label = SCORE_LEVEL_NAMES[level];
   if (level === 'normal') {
     label = `${han}翻${fu}符`;
@@ -289,8 +289,11 @@ function roundUp100(n: number): number {
 }
 
 /** 点数レベル判定 */
-function getScoreLevel(han: number, fu: number, isYakuman: boolean): ScoreLevel {
-  if (isYakuman) return 'yakuman';
+function getScoreLevel(han: number, fu: number, isYakuman: boolean, yakumanCount?: number): ScoreLevel {
+  if (isYakuman) {
+    if (yakumanCount && yakumanCount >= 2) return 'double_yakuman';
+    return 'yakuman';
+  }
   if (han >= 13) return 'yakuman';
   if (han >= 11) return 'sanbaiman';
   if (han >= 8) return 'baiman';

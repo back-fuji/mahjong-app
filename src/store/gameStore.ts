@@ -13,9 +13,12 @@ import {
   checkSuuchariichi, checkSuukaikan,
   processAbortiveDraw,
   advanceRound,
+  applyRonSkipFuriten,
 } from '../core/state/game-engine.ts';
 import { toCount34 } from '../core/tile/tile-utils.ts';
 import { chooseDiscard, shouldCallPon, shouldCallChi, shouldRiichi, shouldTsumoAgari } from '../ai/strategy/strategy.ts';
+import { soundEngine } from '../audio/sound-engine.ts';
+import { replayRecorder } from '../replay/replay-recorder.ts';
 
 interface GameStore {
   // State
@@ -39,6 +42,7 @@ interface GameStore {
   declareKyuushu: () => void;
   nextRound: () => void;
   backToMenu: () => void;
+  loadGameState: (state: GameState, humanIdx: number) => void;
 
   // Computed helpers
   getAvailableActions: () => AvailableActions;
@@ -59,6 +63,8 @@ export interface AvailableActions {
   canKyuushu: boolean;
   /** 鳴き対象の手牌TileId（ハイライト用） */
   callHighlightTiles: TileId[];
+  /** 喰い替え禁止牌IDリスト（打牌不可） */
+  kuikaeDisallowedTiles: TileId[];
 }
 
 function delay(ms: number): Promise<void> {
@@ -83,6 +89,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     // ツモフェーズ
     if (state.phase === 'tsumo' && state.currentPlayer !== humanIdx) {
       let newState = processTsumo(state);
+      soundEngine.playDrawSound();
 
       if (newState.phase === 'round_result') {
         set({ gameState: newState });
@@ -95,8 +102,11 @@ export const useGameStore = create<GameStore>((set, get) => {
       // ツモ和了チェック
       if (checkTsumoAgari(newState)) {
         if (shouldTsumoAgari()) {
+          soundEngine.playAgariVoice('tsumo');
+          replayRecorder.record('tsumo_agari', newState.currentPlayer);
           newState = processTsumoAgari(newState);
           set({ gameState: newState });
+          replayRecorder.stop(newState.players.map(p => p.score)).catch(() => {});
           return;
         }
       }
@@ -132,6 +142,8 @@ export const useGameStore = create<GameStore>((set, get) => {
           const discardTile = chooseDiscard(cpuPlayer.hand.closed, cpuPlayer.hand.tsumo);
           // リーチ可能な牌でフィルタ
           const riichiDiscard = riichiTiles.find(t => t.id === discardTile.id) ?? riichiTiles[0];
+          soundEngine.playRiichiVoice();
+          replayRecorder.record('riichi', newState.currentPlayer, { tileId: riichiDiscard.id });
           newState = processRiichi(newState, riichiDiscard);
           set({ gameState: newState });
           await delay(300);
@@ -164,10 +176,24 @@ export const useGameStore = create<GameStore>((set, get) => {
     const cpuIdx = state.currentPlayer;
     const cpuPlayer = state.players[cpuIdx];
 
-    const discardTile = cpuPlayer.isRiichi
-      ? (cpuPlayer.hand.tsumo ?? cpuPlayer.hand.closed[cpuPlayer.hand.closed.length - 1])
-      : chooseDiscard(cpuPlayer.hand.closed, cpuPlayer.hand.tsumo);
+    let discardTile: TileInstance;
+    if (cpuPlayer.isRiichi) {
+      discardTile = cpuPlayer.hand.tsumo ?? cpuPlayer.hand.closed[cpuPlayer.hand.closed.length - 1];
+    } else {
+      let chosen = chooseDiscard(cpuPlayer.hand.closed, cpuPlayer.hand.tsumo);
+      // 喰い替え禁止牌チェック
+      if (cpuPlayer.kuikaeDisallowedTiles.length > 0 && cpuPlayer.kuikaeDisallowedTiles.includes(chosen.id)) {
+        const allTiles = cpuPlayer.hand.tsumo
+          ? [...cpuPlayer.hand.closed, cpuPlayer.hand.tsumo]
+          : [...cpuPlayer.hand.closed];
+        const allowed = allTiles.filter(t => !cpuPlayer.kuikaeDisallowedTiles.includes(t.id));
+        chosen = allowed.length > 0 ? chooseDiscard(allowed, undefined) : chosen;
+      }
+      discardTile = chosen;
+    }
 
+    soundEngine.playDiscardSound();
+    replayRecorder.record('discard', cpuIdx, { tileId: discardTile.id, tileIndex: discardTile.index });
     const newState = processDiscard(state, discardTile);
     set({ gameState: newState });
 
@@ -253,10 +279,15 @@ export const useGameStore = create<GameStore>((set, get) => {
       let newState: GameState;
 
       if (bestAction.type === 'ron') {
+        soundEngine.playAgariVoice('ron');
+        replayRecorder.record('ron', bestCaller);
         newState = processRon(state, bestCaller);
         set({ gameState: newState });
+        replayRecorder.stop(newState.players.map(p => p.score)).catch(() => {});
         return;
       } else if (bestAction.type === 'minkan') {
+        soundEngine.playCallSound('kan');
+        replayRecorder.record('minkan', bestCaller);
         newState = processMinKan(state, bestCaller);
         set({ gameState: newState });
         // phase is 'discard' → CPU discard
@@ -264,6 +295,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         processCpuDiscard(newState);
         return;
       } else {
+        soundEngine.playCallSound('pon');
+        replayRecorder.record('pon', bestCaller);
         newState = processPon(state, bestCaller);
         set({ gameState: newState });
         // phase is 'discard' → CPU discard
@@ -282,6 +315,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         if (chiOpt) {
           const cpuClosed = toCount34(state.players[nextPlayer].hand.closed);
           if (shouldCallChi(chiOpt, cpuClosed)) {
+            soundEngine.playCallSound('chi');
+            replayRecorder.record('chi', nextPlayer, { tiles: chiOpt.tiles });
             await delay(300);
             const newState = processChi(state, nextPlayer, chiOpt.tiles);
             set({ gameState: newState });
@@ -340,6 +375,9 @@ export const useGameStore = create<GameStore>((set, get) => {
         [true, false, false, false],
         rules,
       );
+      // リプレイ記録開始
+      replayRecorder.start(state);
+
       // 配牌後、親がツモ
       const afterTsumo = processTsumo(state);
       set({ gameState: afterTsumo, screen: 'game', selectedTile: null });
@@ -357,6 +395,8 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (!state || state.phase !== 'discard') return;
       if (state.currentPlayer !== get().humanPlayerIndex) return;
 
+      soundEngine.playDiscardSound();
+      replayRecorder.record('discard', state.currentPlayer, { tileId: tile.id, tileIndex: tile.index });
       const newState = processDiscard(state, tile);
       set({ gameState: newState, selectedTile: null });
 
@@ -368,6 +408,8 @@ export const useGameStore = create<GameStore>((set, get) => {
       const state = get().gameState;
       if (!state) return;
 
+      soundEngine.playRiichiVoice();
+      replayRecorder.record('riichi', state.currentPlayer, { tileId: tile.id, tileIndex: tile.index });
       const newState = processRiichi(state, tile);
       set({ gameState: newState, selectedTile: null });
 
@@ -378,16 +420,23 @@ export const useGameStore = create<GameStore>((set, get) => {
       const state = get().gameState;
       if (!state) return;
 
+      soundEngine.playAgariVoice('tsumo');
+      replayRecorder.record('tsumo_agari', state.currentPlayer);
       const newState = processTsumoAgari(state);
       set({ gameState: newState });
+      replayRecorder.stop(newState.players.map(p => p.score)).catch(() => {});
     },
 
     declareRon: () => {
       const state = get().gameState;
       if (!state) return;
 
-      const newState = processRon(state, get().humanPlayerIndex);
+      soundEngine.playAgariVoice('ron');
+      const humanIdx = get().humanPlayerIndex;
+      replayRecorder.record('ron', humanIdx);
+      const newState = processRon(state, humanIdx);
       set({ gameState: newState });
+      replayRecorder.stop(newState.players.map(p => p.score)).catch(() => {});
     },
 
     callPon: () => {
@@ -456,8 +505,16 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
 
     skipCall: () => {
-      const state = get().gameState;
+      let state = get().gameState;
       if (!state || state.phase !== 'calling') return;
+
+      const humanIdx = get().humanPlayerIndex;
+
+      // ロンを見逃した場合はフリテンを設定
+      const humanOpts = state.callOptions?.get(humanIdx);
+      if (humanOpts?.some(o => o.type === 'ron')) {
+        state = applyRonSkipFuriten(state, humanIdx);
+      }
 
       // 四家立直チェック
       if (checkSuuchariichi(state)) {
@@ -480,7 +537,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       };
       set({ gameState: newState });
 
-      if (nextIdx !== get().humanPlayerIndex) {
+      if (nextIdx !== humanIdx) {
         setTimeout(() => processCpuTurn(), 200);
       } else {
         // 人間のツモ
@@ -522,6 +579,15 @@ export const useGameStore = create<GameStore>((set, get) => {
       set({ gameState: null, screen: 'menu', selectedTile: null });
     },
 
+    loadGameState: (state, humanIdx) => {
+      set({
+        gameState: state,
+        humanPlayerIndex: humanIdx,
+        screen: 'game',
+        selectedTile: null,
+      });
+    },
+
     getAvailableActions: () => {
       const state = get().gameState;
       const humanIdx = get().humanPlayerIndex;
@@ -530,7 +596,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         canDiscard: false, canTsumoAgari: false, canRon: false,
         canRiichi: false, riichiTiles: [], canChi: false, chiOptions: [],
         canPon: false, canKan: false, kanTiles: [], canSkip: false,
-        canKyuushu: false, callHighlightTiles: [],
+        canKyuushu: false, callHighlightTiles: [], kuikaeDisallowedTiles: [],
       };
 
       if (!state) return empty;
@@ -552,6 +618,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           canKan: kanTiles.length > 0,
           kanTiles,
           canKyuushu: canKyuushuKyuhai(state, humanIdx),
+          kuikaeDisallowedTiles: player.kuikaeDisallowedTiles,
         };
       }
 

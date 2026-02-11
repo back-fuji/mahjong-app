@@ -24,14 +24,19 @@ const ActionButton: React.FC<{
   onClick: () => void;
   borderColor: string;
   visible: boolean;
-}> = ({ label, onClick, borderColor, visible }) => {
+  /** オレンジグロー付きハイライト */
+  glowOrange?: boolean;
+}> = ({ label, onClick, borderColor, visible, glowOrange = false }) => {
   if (!visible) return null;
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-xl font-bold text-white text-base shadow-lg transition-all
-        hover:scale-105 active:scale-95 bg-white/10 backdrop-blur-md border ${borderColor}
-        hover:bg-white/20`}
+      className={`px-3 py-2 sm:px-4 rounded-xl font-bold text-white text-sm sm:text-base shadow-lg transition-all
+        hover:scale-105 active:scale-95 backdrop-blur-md border min-w-[48px]
+        ${glowOrange
+          ? 'bg-orange-500/30 border-orange-400 ring-2 ring-orange-400/60 shadow-orange-500/40 hover:bg-orange-500/40'
+          : `bg-white/10 ${borderColor} hover:bg-white/20`
+        }`}
     >
       {label}
     </button>
@@ -45,14 +50,14 @@ export const ActionBar: React.FC<ActionBarProps> = (props) => {
   if (!hasAnyAction && !props.canSkip) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 flex flex-row gap-2 z-50
-      bg-black/20 backdrop-blur-md border border-white/15 rounded-2xl px-3 py-3">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 sm:left-6 sm:translate-x-0 flex flex-row flex-wrap gap-1.5 sm:gap-2 z-50
+      bg-black/20 backdrop-blur-md border border-white/15 rounded-2xl px-2 py-2 sm:px-3 sm:py-3 max-w-[90vw] justify-center">
       <ActionButton label="ツモ" onClick={props.onTsumoAgari} borderColor="border-red-400/50" visible={props.canTsumoAgari} />
       <ActionButton label="ロン" onClick={props.onRon} borderColor="border-red-400/50" visible={props.canRon} />
       <ActionButton label="リーチ" onClick={props.onRiichi} borderColor="border-yellow-400/50" visible={props.canRiichi} />
-      <ActionButton label="カン" onClick={props.onKan} borderColor="border-blue-400/50" visible={props.canKan} />
-      <ActionButton label="ポン" onClick={props.onPon} borderColor="border-green-400/50" visible={props.canPon} />
-      <ActionButton label="チー" onClick={props.onChi} borderColor="border-teal-400/50" visible={props.canChi} />
+      <ActionButton label="カン" onClick={props.onKan} borderColor="border-orange-400/70" visible={props.canKan} glowOrange />
+      <ActionButton label="ポン" onClick={props.onPon} borderColor="border-orange-400/70" visible={props.canPon} glowOrange />
+      <ActionButton label="チー" onClick={props.onChi} borderColor="border-orange-400/70" visible={props.canChi} glowOrange />
       <ActionButton label="流局" onClick={props.onKyuushu} borderColor="border-purple-400/50" visible={props.canKyuushu} />
       <ActionButton label="スキップ" onClick={props.onSkip} borderColor="border-gray-400/50" visible={props.canSkip} />
     </div>

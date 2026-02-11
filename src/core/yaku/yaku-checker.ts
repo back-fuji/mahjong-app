@@ -53,7 +53,7 @@ function makeYaku(id: YakuId, isMenzen: boolean): YakuResult | null {
   const def = YAKU_DEFINITIONS[id];
   if (!isMenzen && def.hanOpen === -1) return null;
   const han = isMenzen ? def.han : def.hanOpen;
-  return { id, name: def.name, han, hanOpen: def.hanOpen, isYakuman: def.isYakuman };
+  return { id, name: def.name, reading: def.reading, han, hanOpen: def.hanOpen, isYakuman: def.isYakuman };
 }
 
 /**
