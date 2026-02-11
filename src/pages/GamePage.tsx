@@ -124,7 +124,7 @@ export const GamePage: React.FC = () => {
   // リーチ演出
   const [showRiichiAnnouncement, setShowRiichiAnnouncement] = useState(false);
   const prevRiichiRef = useRef<boolean[]>([]);
-  const riichiTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const riichiTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // リーチ状態の変化を追跡する文字列（依存配列用）
   const riichiKey = gameState?.players.map(p => p.isRiichi ? '1' : '0').join('') ?? '';
