@@ -69,7 +69,8 @@ export const GamePage: React.FC = () => {
   const nextRound = useGameStore(s => s.nextRound);
   const actions = useGameStore(s => s.getAvailableActions)();
 
-  // ツモ/ロン アナウンス表示
+  // 和了演出: 盤面上手牌公開 → アナウンス → 結果モーダル
+  const [showAgariBoard, setShowAgariBoard] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showDetailedResult, setShowDetailedResult] = useState(false);
   const [announcementText, setAnnouncementText] = useState('');
@@ -155,25 +156,40 @@ export const GamePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [riichiKey]);
 
-  // 局結果が和了の場合、まずアナウンスを2秒表示してから詳細表示
+  // 局結果が和了の場合: 盤面手牌公開(1.5s) → アナウンス(1.5s) → 結果モーダル
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
       setAnnouncementText(agari.isTsumo ? 'ツモ' : 'ロン');
-      setShowAnnouncement(true);
+
+      // Step 1: 盤面上で手牌公開
+      setShowAgariBoard(true);
+      setShowAnnouncement(false);
       setShowDetailedResult(false);
 
-      const timer = setTimeout(() => {
+      const timer1 = setTimeout(() => {
+        // Step 2: アナウンス表示
+        setShowAgariBoard(false);
+        setShowAnnouncement(true);
+      }, 1500);
+
+      const timer2 = setTimeout(() => {
+        // Step 3: 結果モーダル
         setShowAnnouncement(false);
         setShowDetailedResult(true);
-      }, 2000);
+      }, 3000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
     } else if (gameState?.phase === 'round_result') {
       // 流局の場合は直接結果モーダルを表示
+      setShowAgariBoard(false);
       setShowAnnouncement(false);
       setShowDetailedResult(true);
     } else {
+      setShowAgariBoard(false);
       setShowAnnouncement(false);
       setShowDetailedResult(false);
     }
@@ -392,9 +408,14 @@ export const GamePage: React.FC = () => {
             discardTile(tile);
           }
         }}
+        agariInfo={showAgariBoard && gameState.roundResult?.agari?.[0] ? {
+          winner: gameState.roundResult.agari[0].winner,
+          loser: gameState.roundResult.agari[0].loser,
+          isTsumo: gameState.roundResult.agari[0].isTsumo,
+        } : undefined}
       />
 
-      <ActionBar
+      {!showAgariBoard && <ActionBar
         canTsumoAgari={actions.canTsumoAgari}
         canRon={actions.canRon}
         canRiichi={actions.canRiichi}
@@ -423,7 +444,7 @@ export const GamePage: React.FC = () => {
         onKan={() => callKan(actions.kanTiles[0])}
         onSkip={skipCall}
         onKyuushu={declareKyuushu}
-      />
+      />}
 
       {/* 打牌ボタン（左下） */}
       {selectedTile && actions.canDiscard && (

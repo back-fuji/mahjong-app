@@ -3,17 +3,22 @@ import { useState, useEffect } from 'react';
 interface WindowSize {
   width: number;
   height: number;
+  isLandscape: boolean;
+  isMobileLandscape: boolean;
 }
 
 export function useWindowSize(): WindowSize {
-  const [size, setSize] = useState<WindowSize>({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
-    height: typeof window !== 'undefined' ? window.innerHeight : 768,
+  const [size, setSize] = useState<WindowSize>(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 768;
+    return { width: w, height: h, isLandscape: w > h, isMobileLandscape: w > h && h < 500 };
   });
 
   useEffect(() => {
     const handleResize = () => {
-      setSize({ width: window.innerWidth, height: window.innerHeight });
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      setSize({ width: w, height: h, isLandscape: w > h, isMobileLandscape: w > h && h < 500 });
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);

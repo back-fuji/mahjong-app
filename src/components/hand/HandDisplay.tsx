@@ -84,19 +84,19 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
           </div>
         )}
 
-        {/* 副露（下に離して表示） */}
+        {/* 副露（下に離して表示 - 横並びで区別しやすく） */}
         {hasMelds && (
-          <div className="mt-4 flex flex-col items-center gap-1">
+          <div className="mt-3 flex flex-row items-center gap-1 border-t border-white/20 pt-1">
             {hand.melds.map((meld, mi) => (
-              <div key={mi} className="flex flex-col items-center">
+              <div key={mi} className="flex flex-row items-center">
                 {meld.tiles.map((tile, ti) => {
                   const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
                   return (
                     <TileSVG
                       key={tile.index}
                       tile={tile}
-                      width={tileWidth * 0.85}
-                      height={tileHeight * 0.85}
+                      width={tileWidth}
+                      height={tileHeight}
                       sideways={!!isCalled}
                       faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
                     />
@@ -151,7 +151,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
 
         {/* 副露（右側に離して表示） */}
         {hasMelds && (
-          <div className="ml-4 sm:ml-10 flex items-end gap-1 sm:gap-2">
+          <div className="ml-3 sm:ml-8 pl-2 sm:pl-3 border-l border-white/20 flex items-end gap-1 sm:gap-2">
             {hand.melds.map((meld, mi) => (
               <div key={mi} className="flex items-end">
                 {meld.tiles.map((tile, ti) => {
@@ -160,8 +160,8 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
                     <TileSVG
                       key={tile.index}
                       tile={tile}
-                      width={tileWidth * 0.85}
-                      height={tileHeight * 0.85}
+                      width={tileWidth}
+                      height={tileHeight}
                       sideways={!!isCalled}
                       faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
                     />
