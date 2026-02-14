@@ -150,6 +150,21 @@ body {
 }
 .cutin-riichi-band { animation: cutin-riichi-band 2s ease-in-out forwards; }
 
+/* === SP横向き強制（ゲーム画面用） === */
+@media (max-width: 768px) and (orientation: portrait) {
+  .sp-force-landscape {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vh !important;
+    height: 100vw !important;
+    transform: rotate(90deg);
+    transform-origin: top left;
+    translate: 100vw 0;
+    overflow: hidden;
+  }
+}
+
 /* 薄いスクロールバー（SP手牌用） */
 .scrollbar-thin {
   scrollbar-width: thin;

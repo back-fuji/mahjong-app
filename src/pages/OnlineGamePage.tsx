@@ -87,13 +87,15 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const phaseInfo = getPhaseMessage(gameState.phase, isMyTurn, selectedTile, canDiscard, canCall);
 
   return (
-    <div className="w-full h-screen bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none">
-      {/* ステータスインジケーター（グラスUI） */}
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-        <div className="bg-black/20 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full shadow-lg transition-all">
-          <div className="text-white/90 font-bold text-lg text-center">{phaseInfo.message}</div>
+    <div className="w-full h-screen bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none sp-force-landscape">
+      {/* ステータスインジケーター（グラスUI）
+          SP: 打牌ボタンのすぐ上、左寄せ
+          PC: 画面最左、縦中央 */}
+      <div className="fixed bottom-[100px] left-2 sm:bottom-auto sm:left-3 sm:top-1/2 sm:-translate-y-1/2 z-50 pointer-events-none">
+        <div className="bg-black/20 backdrop-blur-md border border-white/20 px-2 py-1 sm:px-6 sm:py-2 rounded-xl shadow-lg transition-all">
+          <div className="text-white/90 font-bold text-xs sm:text-lg text-center whitespace-nowrap">{phaseInfo.message}</div>
           {phaseInfo.hint && (
-            <div className="text-white/60 text-sm text-center">{phaseInfo.hint}</div>
+            <div className="text-white/60 text-[9px] sm:text-sm text-center max-w-[120px] sm:max-w-none leading-tight">{phaseInfo.hint}</div>
           )}
         </div>
       </div>
@@ -201,14 +203,14 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
 
       {/* 打牌ボタン - 左下グラスUI */}
       {selectedTile && actions.includes('discard') && (
-        <div className="fixed bottom-6 left-6 z-40">
+        <div className="fixed bottom-2 left-2 sm:bottom-6 sm:left-6 z-40">
           <button
             onClick={() => {
               sendAction({ type: 'discard', tileIndex: selectedTile.index });
               setSelectedTile(null);
             }}
-            className="px-10 py-4 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
-              text-white font-bold text-xl shadow-lg transition-all hover:bg-white/20
+            className="px-6 py-3 sm:px-10 sm:py-4 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
+              text-white font-bold text-base sm:text-xl shadow-lg transition-all hover:bg-white/20
               hover:scale-105 active:scale-95"
           >
             打牌

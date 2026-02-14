@@ -53,7 +53,7 @@ export const ActionBar: React.FC<ActionBarProps> = (props) => {
   if (!hasAnyAction && !props.canSkip) return null;
 
   return (
-    <div className={`fixed ${isMobileLandscape ? 'bottom-2' : 'bottom-4'} left-1/2 -translate-x-1/2 sm:left-6 sm:translate-x-0 flex flex-row flex-wrap gap-1.5 sm:gap-2 z-50
+    <div className={`fixed ${isMobileLandscape ? 'bottom-2 left-2' : 'bottom-4 left-1/2 -translate-x-1/2'} sm:left-6 sm:translate-x-0 flex flex-row flex-wrap gap-1.5 sm:gap-2 z-50
       bg-black/20 backdrop-blur-md border border-white/15 rounded-2xl ${isMobileLandscape ? 'px-1.5 py-1' : 'px-2 py-2 sm:px-3 sm:py-3'} max-w-[90vw] justify-center`}>
       <ActionButton label="ツモ" onClick={props.onTsumoAgari} borderColor="border-red-400/50" visible={props.canTsumoAgari} compact={isMobileLandscape} />
       <ActionButton label="ロン" onClick={props.onRon} borderColor="border-red-400/50" visible={props.canRon} compact={isMobileLandscape} />

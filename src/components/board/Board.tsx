@@ -68,12 +68,12 @@ export const Board: React.FC<BoardProps> = ({
 
     if (windowSize.isMobileLandscape) {
       return {
-        topDiscard: { w: 12, h: 16 },
-        sideDiscard: { w: 10, h: 14 },
-        bottomDiscard: { w: 14, h: 20 },
-        topHand: { w: 12, h: 16 },
-        sideHand: { w: 10, h: 14 },
-        bottomHand: { w: 22, h: 30 },
+        topDiscard: { w: 18, h: 25 },
+        sideDiscard: { w: 17, h: 24 },
+        bottomDiscard: { w: 18, h: 25 },
+        topHand: { w: 14, h: 20 },
+        sideHand: { w: 11, h: 16 },
+        bottomHand: { w: 24, h: 33 },
       };
     }
     if (isMobile) {
@@ -124,7 +124,7 @@ export const Board: React.FC<BoardProps> = ({
   const isMobileLandscape = windowSize.isMobileLandscape;
 
   return (
-    <div className={`w-full h-screen flex flex-col items-center justify-between select-none overflow-hidden ${isMobileLandscape ? 'p-0.5 gap-0' : 'p-2'}`}>
+    <div className={`w-full h-full flex flex-col items-center justify-between select-none overflow-hidden ${isMobileLandscape ? 'p-0.5 gap-0' : 'p-2'}`}>
       {/* 上（対面） */}
       <div className={`flex flex-col items-center gap-0 flex-shrink-0 ${isMobileLandscape ? 'mt-0' : ''}`}>
         <div className="flex items-center gap-1">
@@ -140,7 +140,7 @@ export const Board: React.FC<BoardProps> = ({
             <span className="ml-0.5">{players[topIdx].name}</span>
           </div>
         </div>
-        <div className="flex items-end justify-center" style={{ minHeight: topDiscard.h * (isMobileLandscape ? 3 : 4) }}>
+        <div className="flex items-end justify-center" style={{ minHeight: topDiscard.h * (isMobileLandscape ? 2.5 : 4) }}>
           <DiscardPool
             discards={players[topIdx].discards}
             riichiDiscardIndex={players[topIdx].riichiDiscardIndex}
@@ -153,7 +153,7 @@ export const Board: React.FC<BoardProps> = ({
       </div>
 
       {/* 中段: 左・中央・右 */}
-      <div className={`flex items-center justify-center w-full max-w-6xl flex-shrink-0 ${isMobileLandscape ? 'my-0' : ''}`}>
+      <div className={`flex items-center w-full max-w-6xl flex-shrink-0 ${isMobileLandscape ? 'my-0 justify-between' : 'justify-center'}`}>
         {/* 左（上家） */}
         <div className="flex flex-row items-center gap-0.5 flex-shrink-0">
           <div className="flex flex-col items-center gap-0.5">
@@ -230,7 +230,7 @@ export const Board: React.FC<BoardProps> = ({
       </div>
 
       {/* 下（自分） */}
-      <div className={`flex flex-col items-center gap-0 flex-shrink-0 ${isMobileLandscape ? 'mb-0' : ''}`}>
+      <div className={`flex flex-col items-center gap-0 ${isMobileLandscape ? 'mb-0 flex-shrink min-h-0' : 'flex-shrink-0'}`}>
         <div
           className="flex items-start justify-center"
           style={{ minHeight: bottomDiscard.h * (isMobileLandscape ? 2 : 3) }}

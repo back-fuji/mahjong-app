@@ -156,28 +156,28 @@ export const GamePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [riichiKey]);
 
-  // 局結果が和了の場合: 盤面手牌公開(1.5s) → アナウンス(1.5s) → 結果モーダル
+  // 局結果が和了の場合: 盤面手牌公開(2s) → 盤面+アナウンス(2s) → 結果モーダル
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
       setAnnouncementText(agari.isTsumo ? 'ツモ' : 'ロン');
 
-      // Step 1: 盤面上で手牌公開
+      // Step 1: 盤面上で手牌公開（ロン牌ハイライト含む）
       setShowAgariBoard(true);
       setShowAnnouncement(false);
       setShowDetailedResult(false);
 
       const timer1 = setTimeout(() => {
-        // Step 2: アナウンス表示
-        setShowAgariBoard(false);
+        // Step 2: 盤面を維持したままアナウンス表示（手牌+ロン牌が見える状態）
         setShowAnnouncement(true);
-      }, 1500);
+      }, 2000);
 
       const timer2 = setTimeout(() => {
         // Step 3: 結果モーダル
+        setShowAgariBoard(false);
         setShowAnnouncement(false);
         setShowDetailedResult(true);
-      }, 3000);
+      }, 4000);
 
       return () => {
         clearTimeout(timer1);
@@ -357,7 +357,7 @@ export const GamePage: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-screen bg-green-900 overflow-hidden relative" onClick={handleBackgroundClick}>
+    <div className="w-full h-screen bg-green-900 overflow-hidden relative sp-force-landscape" onClick={handleBackgroundClick}>
       {/* ヘルプ・役一覧ボタン（右上） */}
       <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 flex gap-1">
         <button
@@ -379,9 +379,9 @@ export const GamePage: React.FC = () => {
       </div>
 
       {/* ステータスインジケーター
-          SP: 画面下部の捨て牌の近く（bottom-[160px]）、中央寄せ
+          SP: 打牌ボタンのすぐ上、左寄せ
           PC: 画面最左、縦中央 */}
-      <div className="fixed bottom-[160px] left-1/2 -translate-x-1/2 sm:bottom-auto sm:left-3 sm:top-1/2 sm:-translate-y-1/2 sm:translate-x-0 z-50 pointer-events-none">
+      <div className="fixed bottom-[100px] left-2 sm:bottom-auto sm:left-3 sm:top-1/2 sm:-translate-y-1/2 z-50 pointer-events-none">
         <div className={`bg-black/40 backdrop-blur-md border ${phaseInfo.borderColor} px-2 py-1 sm:px-3 sm:py-2 rounded-xl shadow-lg transition-all`}>
           <div className="text-white/90 font-bold text-xs sm:text-sm text-center whitespace-nowrap">{phaseInfo.message}</div>
           {phaseInfo.hint && (
@@ -448,7 +448,7 @@ export const GamePage: React.FC = () => {
 
       {/* 打牌ボタン（左下） */}
       {selectedTile && actions.canDiscard && (
-        <div className="fixed bottom-16 sm:bottom-6 left-4 sm:left-6 z-40">
+        <div className="fixed bottom-2 left-2 sm:bottom-6 sm:left-6 z-40">
           <button
             onClick={handleDiscard}
             className="px-6 py-3 sm:px-10 sm:py-4 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
@@ -462,7 +462,7 @@ export const GamePage: React.FC = () => {
 
       {/* テンパイ/フリテンインジケーター（右下） */}
       {gameState.phase !== 'round_result' && gameState.phase !== 'game_result' && (
-        <div className="fixed bottom-16 sm:bottom-6 right-4 sm:right-6 z-40">
+        <div className="fixed bottom-2 sm:bottom-6 right-2 sm:right-6 z-40">
           <TenpaiIndicator gameState={gameState} humanPlayerIndex={humanPlayerIndex} />
         </div>
       )}
