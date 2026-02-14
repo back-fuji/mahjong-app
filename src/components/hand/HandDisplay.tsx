@@ -113,7 +113,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
   // 横並び表示（自分・対面用）
   // SP時に横幅が収まらない場合はスクロール可能にする
   return (
-    <div className="overflow-x-auto max-w-full scrollbar-thin">
+    <div className="max-w-full">
       <div className="flex items-end w-max">
         {/* 門前手牌 */}
         <div className="flex items-end">

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useGameStore } from './store/gameStore.ts';
+import { useIsMobilePortrait } from './hooks/useIsMobilePortrait.ts';
+import { LandscapePrompt } from './components/LandscapePrompt.tsx';
 import { MenuPage } from './pages/MenuPage.tsx';
 import { GamePage } from './pages/GamePage.tsx';
 import { LobbyPage } from './pages/LobbyPage.tsx';
@@ -38,6 +40,7 @@ function App() {
 function GameRoute() {
   const gameState = useGameStore(s => s.gameState);
   const startGame = useGameStore(s => s.startGame);
+  const isMobilePortrait = useIsMobilePortrait();
 
   useEffect(() => {
     if (!gameState) {
@@ -45,7 +48,9 @@ function GameRoute() {
     }
   }, [gameState, startGame]);
 
-  if (!gameState) return null;
+  if (!gameState) {
+    return isMobilePortrait ? <LandscapePrompt /> : null;
+  }
 
   return <GamePage />;
 }

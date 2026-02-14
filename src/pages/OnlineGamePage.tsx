@@ -7,6 +7,8 @@ import { CenterInfo } from '../components/board/CenterInfo.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { TILE_SHORT } from '../core/types/tile.ts';
+import { MeldType } from '../core/types/meld.ts';
+import type { Meld } from '../core/types/meld.ts';
 
 /** フェーズに応じた状態メッセージ */
 function getPhaseMessage(
@@ -87,7 +89,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const phaseInfo = getPhaseMessage(gameState.phase, isMyTurn, selectedTile, canDiscard, canCall);
 
   return (
-    <div className="w-full h-screen bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none sp-force-landscape">
+    <div className="w-full h-[100dvh] bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none sp-force-landscape">
       {/* ステータスインジケーター（グラスUI）
           SP: 打牌ボタンのすぐ上、左寄せ
           PC: 画面最左、縦中央 */}
@@ -102,10 +104,33 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
 
       {/* 上（対面） - 手牌と捨て牌を横並び */}
       <div className="flex flex-col items-center gap-1">
-        <div className="flex">
-          {Array.from({ length: players[topIdx].closedCount || 0 }, (_, i) => (
-            <TileSVG key={i} width={28} height={38} faceDown />
-          ))}
+        <div className="flex items-end">
+          <div className="flex">
+            {Array.from({ length: players[topIdx].closedCount || 0 }, (_, i) => (
+              <TileSVG key={i} width={28} height={38} faceDown />
+            ))}
+          </div>
+          {players[topIdx].melds && players[topIdx].melds.length > 0 && (
+            <div className="ml-2 pl-2 border-l border-white/20 flex items-end gap-1">
+              {players[topIdx].melds.map((meld: Meld, mi: number) => (
+                <div key={mi} className="flex items-end">
+                  {meld.tiles.map((tile: TileInstance, ti: number) => {
+                    const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
+                    return (
+                      <TileSVG
+                        key={tile.index}
+                        tile={tile}
+                        width={28}
+                        height={38}
+                        sideways={!!isCalled}
+                        faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <DiscardPool
           discards={players[topIdx].discards}
@@ -119,10 +144,33 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       <div className="flex items-center justify-between w-full max-w-6xl">
         {/* 左（上家）- 手牌と捨て牌を縦並び */}
         <div className="flex flex-row items-center gap-1">
-          <div className="flex flex-col gap-0.5">
-            {Array.from({ length: players[leftIdx].closedCount || 0 }, (_, i) => (
-              <TileSVG key={i} width={20} height={28} faceDown />
-            ))}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="flex flex-col items-center">
+              {Array.from({ length: players[leftIdx].closedCount || 0 }, (_, i) => (
+                <TileSVG key={i} width={20} height={28} faceDown />
+              ))}
+            </div>
+            {players[leftIdx].melds && players[leftIdx].melds.length > 0 && (
+              <div className="mt-2 flex flex-row items-center gap-1 border-t border-white/20 pt-1">
+                {players[leftIdx].melds.map((meld: Meld, mi: number) => (
+                  <div key={mi} className="flex flex-row items-center">
+                    {meld.tiles.map((tile: TileInstance, ti: number) => {
+                      const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
+                      return (
+                        <TileSVG
+                          key={tile.index}
+                          tile={tile}
+                          width={20}
+                          height={28}
+                          sideways={!!isCalled}
+                          faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <DiscardPool 
             discards={players[leftIdx].discards} 
@@ -145,17 +193,40 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
 
         {/* 右（下家）- 捨て牌と手牌を縦並び */}
         <div className="flex flex-row items-center gap-1">
-          <DiscardPool 
-            discards={players[rightIdx].discards} 
-            riichiDiscardIndex={-1} 
-            tileWidth={28} 
-            tileHeight={38} 
+          <DiscardPool
+            discards={players[rightIdx].discards}
+            riichiDiscardIndex={-1}
+            tileWidth={28}
+            tileHeight={38}
             position="right"
           />
-          <div className="flex flex-col gap-0.5">
-            {Array.from({ length: players[rightIdx].closedCount || 0 }, (_, i) => (
-              <TileSVG key={i} width={20} height={28} faceDown />
-            ))}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="flex flex-col items-center">
+              {Array.from({ length: players[rightIdx].closedCount || 0 }, (_, i) => (
+                <TileSVG key={i} width={20} height={28} faceDown />
+              ))}
+            </div>
+            {players[rightIdx].melds && players[rightIdx].melds.length > 0 && (
+              <div className="mt-2 flex flex-row items-center gap-1 border-t border-white/20 pt-1">
+                {players[rightIdx].melds.map((meld: Meld, mi: number) => (
+                  <div key={mi} className="flex flex-row items-center">
+                    {meld.tiles.map((tile: TileInstance, ti: number) => {
+                      const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
+                      return (
+                        <TileSVG
+                          key={tile.index}
+                          tile={tile}
+                          width={20}
+                          height={28}
+                          sideways={!!isCalled}
+                          faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

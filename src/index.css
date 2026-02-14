@@ -47,7 +47,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--bg-board);
   color: var(--text-primary);
   font-family: system-ui, -apple-system, sans-serif;
@@ -55,7 +55,7 @@ body {
 
 #root {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
 }
 
 /* テーマ対応ユーティリティ */
@@ -156,11 +156,11 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vh !important;
-    height: 100vw !important;
+    width: 100dvh !important;
+    height: 100dvw !important;
     transform: rotate(90deg);
     transform-origin: top left;
-    translate: 100vw 0;
+    translate: 100dvw 0;
     overflow: hidden;
   }
 }

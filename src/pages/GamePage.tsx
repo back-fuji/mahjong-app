@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobilePortrait } from '../hooks/useIsMobilePortrait.ts';
+import { LandscapePrompt } from '../components/LandscapePrompt.tsx';
 import { useGameStore } from '../store/gameStore.ts';
 import { Board } from '../components/board/Board.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
@@ -53,6 +55,7 @@ function getPhaseMessage(
 
 export const GamePage: React.FC = () => {
   const navigate = useNavigate();
+  const isMobilePortrait = useIsMobilePortrait();
   const gameState = useGameStore(s => s.gameState);
   const humanPlayerIndex = useGameStore(s => s.humanPlayerIndex);
   const selectedTile = useGameStore(s => s.selectedTile);
@@ -357,7 +360,9 @@ export const GamePage: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-screen bg-green-900 overflow-hidden relative sp-force-landscape" onClick={handleBackgroundClick}>
+    <>
+      {isMobilePortrait && <LandscapePrompt />}
+      <div className="w-full h-[100dvh] bg-green-900 overflow-hidden relative sp-force-landscape" onClick={handleBackgroundClick}>
       {/* ヘルプ・役一覧ボタン（右上） */}
       <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 flex gap-1">
         <button
@@ -511,5 +516,6 @@ export const GamePage: React.FC = () => {
         />
       )}
     </div>
+    </>
   );
 };

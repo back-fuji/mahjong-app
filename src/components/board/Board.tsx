@@ -233,7 +233,7 @@ export const Board: React.FC<BoardProps> = ({
       <div className={`flex flex-col items-center gap-0 ${isMobileLandscape ? 'mb-0 flex-shrink min-h-0' : 'flex-shrink-0'}`}>
         <div
           className="flex items-start justify-center"
-          style={{ minHeight: bottomDiscard.h * (isMobileLandscape ? 2 : 3) }}
+          // style={{ minHeight: bottomDiscard.h * (isMobileLandscape ? 2 : 3) }}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
           onDrop={(e) => {
             e.preventDefault();
