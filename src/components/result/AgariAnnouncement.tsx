@@ -2,17 +2,26 @@ import React from 'react';
 
 interface AgariAnnouncementProps {
   text: string; // 'ツモ' or 'ロン' or 'リーチ'
+  /** スライドインの方向（0=下/自分, 1=右, 2=上/対面, 3=左） */
+  direction?: number;
 }
+
+const SLIDE_CLASSES = ['slide-in-bottom', 'slide-in-right', 'slide-in-top', 'slide-in-left'] as const;
+const WIND_LABELS = ['', '下家', '対面', '上家'] as const;
 
 /**
  * 和了/リーチ時のカットインエフェクト
  * アニメの必殺技のような演出: 帯 + スラッシュ + フラッシュ + テキスト
+ * direction指定時は該当プレイヤーの方向からスライドインする
  */
-export const AgariAnnouncement: React.FC<AgariAnnouncementProps> = ({ text }) => {
+export const AgariAnnouncement: React.FC<AgariAnnouncementProps> = ({ text, direction }) => {
   const isRiichi = text === 'リーチ';
   const mainColor = isRiichi ? '#3b82f6' : '#f97316';
   const glowColor = isRiichi ? 'rgba(59, 130, 246, 0.8)' : 'rgba(249, 115, 22, 0.8)';
   const bandColor = isRiichi ? 'rgba(30, 64, 175, 0.85)' : 'rgba(120, 40, 0, 0.85)';
+
+  const slideClass = direction !== undefined ? SLIDE_CLASSES[direction] ?? '' : '';
+  const windLabel = direction !== undefined && direction > 0 ? WIND_LABELS[direction] : '';
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none overflow-hidden">
@@ -71,9 +80,9 @@ export const AgariAnnouncement: React.FC<AgariAnnouncementProps> = ({ text }) =>
         />
       ))}
 
-      {/* テキスト */}
+      {/* テキスト（方向付きスライドイン） */}
       <div
-        className="relative cutin-text"
+        className={`relative ${slideClass || 'cutin-text'}`}
         style={{
           fontFamily: '"Yu Mincho", "游明朝", "Hiragino Mincho Pro", "ヒラギノ明朝 Pro", "MS PMincho", serif',
           fontSize: isRiichi ? '6rem' : '8rem',
@@ -83,8 +92,22 @@ export const AgariAnnouncement: React.FC<AgariAnnouncementProps> = ({ text }) =>
           letterSpacing: '0.3em',
           WebkitTextStroke: `2px ${mainColor}`,
           zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
         }}
       >
+        {/* 家の表示（対面・上家・下家） */}
+        {windLabel && (
+          <div style={{
+            fontSize: '1.5rem',
+            letterSpacing: '0.1em',
+            WebkitTextStroke: `1px ${mainColor}`,
+            marginBottom: '-0.5rem',
+          }}>
+            {windLabel}
+          </div>
+        )}
         {text}
       </div>
     </div>

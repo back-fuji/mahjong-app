@@ -10,9 +10,11 @@ import { buildWall, dealTiles, drawRinshan } from '../wall/wall.ts';
 import { toCount34, sortTiles, emptyCount34, countDora, countRedDora, isYaochu, isKaze, getSuit, SuitType, suitStart } from '../tile/tile-utils.ts';
 import { getHandCounts, removeTileFromHand } from '../hand/hand-utils.ts';
 import { checkAgari, getWaitingTiles, isTenpai } from '../agari/agari.ts';
+import type { AgariInfo } from '../agari/agari.ts';
 import { getChiOptions, getPonOption, getMinKanOption, getAnKanTiles, getShouMinKanTiles } from '../meld/meld-utils.ts';
 import { calculateScore } from '../score/score-calc.ts';
 import type { YakuContext } from '../yaku/yaku-checker.ts';
+import { checkYakuRegular, checkYakuChiitoitsu, checkYakuKokushi } from '../yaku/yaku-checker.ts';
 
 /** ゲームを初期化 */
 export function initGame(
@@ -179,6 +181,11 @@ export function processTsumoAgari(state: GameState): GameState {
     allClosed, state.round.honba,
   );
 
+  // 役なしの場合はツモ和了不可（安全ガード）
+  if (!scoreResult) {
+    return state;
+  }
+
   const agariResult: AgariResult = {
     winner: playerIdx,
     loser: -1,
@@ -239,8 +246,12 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
       // フリテンチェック: 捨て牌フリテン or 同巡フリテン or リーチ後フリテンならロン不可
       const isFuritenRon = otherPlayer.isFuriten || otherPlayer.tempFuriten;
       if (!isFuritenRon) {
-        ronCount++;
-        opts.push({ type: 'ron', tiles: [], calledTile: tile.id });
+        // 役の有無をチェック（役なしの場合はロン不可）
+        const hasYaku = checkHasYaku(agari, tempCounts, otherPlayer, tile.id, state);
+        if (hasYaku) {
+          ronCount++;
+          opts.push({ type: 'ron', tiles: [], calledTile: tile.id });
+        }
       }
     }
 
@@ -368,6 +379,11 @@ export function processRon(state: GameState, winnerIdx: number): GameState {
     state.doraIndicators, state.uraDoraIndicators,
     [...closedWithAgari, discardTile], state.round.honba,
   );
+
+  // 役なしの場合はロン不可（安全ガード）
+  if (!scoreResult) {
+    return state;
+  }
 
   const agariResult: AgariResult = {
     winner: winnerIdx,
@@ -941,6 +957,46 @@ export function applyRonSkipFuriten(state: GameState, playerIdx: number): GameSt
 
   players[playerIdx] = player;
   return { ...state, players };
+}
+
+/** 役の有無チェック（ロン可否判定用） */
+function checkHasYaku(
+  agari: AgariInfo,
+  closedCounts: TileCount34,
+  player: Player,
+  agariTileId: TileId,
+  state: GameState,
+): boolean {
+  const ctx: YakuContext = {
+    closedCounts,
+    melds: player.hand.melds,
+    agariTile: agariTileId,
+    isTsumo: false,
+    isMenzen: player.isMenzen,
+    seatWind: player.seatWind,
+    roundWind: state.round.bakaze,
+    isRiichi: player.isRiichi,
+    isDoubleRiichi: player.isDoubleRiichi,
+    isIppatsu: player.isIppatsu,
+    isHaitei: false,
+    isHoutei: state.round.remainingTiles === 0,
+    isRinshan: false,
+    isChankan: false,
+    isTenhou: false,
+    isChiihou: false,
+    kuitan: state.rules.kuitan,
+  };
+
+  if (agari.type === 'chiitoitsu') {
+    return checkYakuChiitoitsu(ctx).length > 0;
+  }
+  if (agari.type === 'kokushi') {
+    return checkYakuKokushi(ctx).length > 0;
+  }
+  for (const decomp of agari.decompositions) {
+    if (checkYakuRegular(ctx, decomp).length > 0) return true;
+  }
+  return false;
 }
 
 /** 捨て牌フリテン: 自分の待ち牌が自分の捨て牌にあるか */

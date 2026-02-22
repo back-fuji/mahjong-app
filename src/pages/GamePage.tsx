@@ -77,6 +77,7 @@ export const GamePage: React.FC = () => {
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showDetailedResult, setShowDetailedResult] = useState(false);
   const [announcementText, setAnnouncementText] = useState('');
+  const [agariDirection, setAgariDirection] = useState<number | undefined>(undefined);
 
   // チー候補選択
   const [showChiSelector, setShowChiSelector] = useState(false);
@@ -84,6 +85,7 @@ export const GamePage: React.FC = () => {
   // 鳴き演出
   const [callAnnouncementText, setCallAnnouncementText] = useState<string | null>(null);
   const prevPhaseRef = useRef(gameState?.phase);
+  const prevMeldCountsRef = useRef<number[]>(gameState?.players.map(p => p.hand.melds.length) ?? []);
 
   // 実績トースト
   const [achievementToastIds, setAchievementToastIds] = useState<string[]>([]);
@@ -164,6 +166,8 @@ export const GamePage: React.FC = () => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
       setAnnouncementText(agari.isTsumo ? 'ツモ' : 'ロン');
+      // 和了者の相対位置: 0=自分(下), 1=右(下家), 2=上(対面), 3=左(上家)
+      setAgariDirection((agari.winner - humanPlayerIndex + 4) % 4);
 
       // Step 1: 盤面上で手牌公開（ロン牌ハイライト含む）
       setShowAgariBoard(true);
@@ -198,30 +202,38 @@ export const GamePage: React.FC = () => {
     }
   }, [gameState?.phase, gameState?.roundResult]);
 
-  // 鳴き演出: calling -> discard に遷移した時（ポン/チー/カンが成立した時）
+  // 鳴き演出: メルド数の変化を検知（ポン/チー/暗槓/加槓/大明槓すべて対応）
+  const meldKey = gameState?.players.map(p => p.hand.melds.length).join(',') ?? '';
   useEffect(() => {
     if (!gameState) return;
     const prevPhase = prevPhaseRef.current;
     prevPhaseRef.current = gameState.phase;
 
-    // calling -> discard は鳴き成立を意味する
-    if (prevPhase === 'calling' && gameState.phase === 'discard') {
-      // 最新の副露を確認して演出する
-      const currentPlayer = gameState.players[gameState.currentPlayer];
-      const lastMeld = currentPlayer.hand.melds[currentPlayer.hand.melds.length - 1];
-      if (lastMeld) {
-        const callName = lastMeld.type === 'chi' ? 'チー'
-          : lastMeld.type === 'pon' ? 'ポン'
-          : (lastMeld.type === 'minkan' || lastMeld.type === 'ankan' || lastMeld.type === 'shouminkan') ? 'カン'
-          : null;
-        if (callName) {
-          soundEngine.playCallSound(lastMeld.type === 'chi' ? 'chi' : lastMeld.type === 'pon' ? 'pon' : 'kan');
-          setCallAnnouncementText(callName);
-          setTimeout(() => setCallAnnouncementText(null), 800);
+    const currentMeldCounts = gameState.players.map(p => p.hand.melds.length);
+    const prevCounts = prevMeldCountsRef.current;
+    prevMeldCountsRef.current = currentMeldCounts;
+
+    // メルド数が増えたプレイヤーを検出
+    for (let i = 0; i < Math.min(currentMeldCounts.length, prevCounts.length); i++) {
+      if (currentMeldCounts[i] > prevCounts[i]) {
+        const player = gameState.players[i];
+        const lastMeld = player.hand.melds[player.hand.melds.length - 1];
+        if (lastMeld) {
+          const callName = lastMeld.type === 'chi' ? 'チー'
+            : lastMeld.type === 'pon' ? 'ポン'
+            : (lastMeld.type === 'minkan' || lastMeld.type === 'ankan' || lastMeld.type === 'shouminkan') ? 'カン'
+            : null;
+          if (callName) {
+            soundEngine.playCallSound(lastMeld.type === 'chi' ? 'chi' : lastMeld.type === 'pon' ? 'pon' : 'kan');
+            setCallAnnouncementText(callName);
+            setTimeout(() => setCallAnnouncementText(null), 800);
+          }
         }
+        break;
       }
     }
-  }, [gameState?.phase, gameState?.currentPlayer]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meldKey]);
 
   const handleTileClick = useCallback((tile: TileInstance) => {
     if (!gameState) return;
@@ -366,6 +378,18 @@ export const GamePage: React.FC = () => {
       {/* ヘルプ・役一覧ボタン（右上） */}
       <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 flex gap-1">
         <button
+          onClick={() => {
+            if (window.confirm('ホームに戻りますか？（対局は中断されます）')) {
+              navigate('/');
+            }
+          }}
+          className="w-8 h-8 sm:w-9 sm:h-9 bg-black/30 backdrop-blur-md border border-white/20 rounded-full
+            text-white/70 hover:text-white hover:bg-black/50 transition-all text-sm sm:text-base font-bold"
+          title="ホーム"
+        >
+          &#x2302;
+        </button>
+        <button
           onClick={() => navigate('/help')}
           className="w-8 h-8 sm:w-9 sm:h-9 bg-black/30 backdrop-blur-md border border-white/20 rounded-full
             text-white/70 hover:text-white hover:bg-black/50 transition-all text-sm sm:text-base font-bold"
@@ -402,7 +426,7 @@ export const GamePage: React.FC = () => {
         onTileClick={handleTileClick}
         highlightTileIds={actions.callHighlightTiles}
         highlightLastDiscardPlayer={
-          gameState.phase === 'calling' && gameState.lastDiscard
+          gameState.phase === 'calling' && gameState.lastDiscard && actions.canSkip
             ? gameState.lastDiscard.playerIndex
             : -1
         }
@@ -494,9 +518,9 @@ export const GamePage: React.FC = () => {
         <AgariAnnouncement text="リーチ" />
       )}
 
-      {/* ツモ/ロン カットイン（2秒表示） */}
+      {/* ツモ/ロン カットイン（方向付きスライドイン、2秒表示） */}
       {showAnnouncement && (
-        <AgariAnnouncement text={announcementText} />
+        <AgariAnnouncement text={announcementText} direction={agariDirection} />
       )}
 
       {/* 局結果モーダル（詳細表示） */}

@@ -136,7 +136,8 @@ export const Board: React.FC<BoardProps> = ({
             tileHeight={sizes.topHand.h}
           />
           <div className={`${isMobileLandscape ? 'text-[8px]' : 'text-[10px] sm:text-xs'} text-gray-300 font-bold whitespace-nowrap px-1`}>
-            <span className="text-yellow-400">{WIND_NAMES[players[topIdx].seatWind]}</span>
+            <span className={players[topIdx].seatWind === 0 ? 'text-red-400' : 'text-yellow-400'}>{WIND_NAMES[players[topIdx].seatWind]}</span>
+            {players[topIdx].seatWind === 0 && <span className="text-red-400 text-[8px] ml-0.5">親</span>}
             <span className="ml-0.5">{players[topIdx].name}</span>
           </div>
         </div>
@@ -166,7 +167,8 @@ export const Board: React.FC<BoardProps> = ({
               vertical={true}
             />
             <div className={`${isMobileLandscape ? 'text-[7px]' : 'text-[9px] sm:text-[10px]'} text-gray-300 font-bold whitespace-nowrap`}>
-              <span className="text-yellow-400">{WIND_NAMES[players[leftIdx].seatWind]}</span>
+              <span className={players[leftIdx].seatWind === 0 ? 'text-red-400' : 'text-yellow-400'}>{WIND_NAMES[players[leftIdx].seatWind]}</span>
+              {players[leftIdx].seatWind === 0 && <span className="text-red-400 text-[7px] ml-0.5">親</span>}
               <span className="ml-0.5">{players[leftIdx].name}</span>
             </div>
           </div>
@@ -214,7 +216,8 @@ export const Board: React.FC<BoardProps> = ({
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <div className={`${isMobileLandscape ? 'text-[7px]' : 'text-[9px] sm:text-[10px]'} text-gray-300 font-bold whitespace-nowrap`}>
-              <span className="text-yellow-400">{WIND_NAMES[players[rightIdx].seatWind]}</span>
+              <span className={players[rightIdx].seatWind === 0 ? 'text-red-400' : 'text-yellow-400'}>{WIND_NAMES[players[rightIdx].seatWind]}</span>
+              {players[rightIdx].seatWind === 0 && <span className="text-red-400 text-[7px] ml-0.5">親</span>}
               <span className="ml-0.5">{players[rightIdx].name}</span>
             </div>
             <HandDisplay
@@ -275,7 +278,8 @@ export const Board: React.FC<BoardProps> = ({
             />
           </div>
           <div className={`${isMobileLandscape ? 'text-[8px]' : 'text-[10px] sm:text-xs'} text-gray-300 font-bold whitespace-nowrap flex-shrink-0`}>
-            <span className="text-yellow-400">{WIND_NAMES[players[bottomIdx].seatWind]}</span>
+            <span className={players[bottomIdx].seatWind === 0 ? 'text-red-400' : 'text-yellow-400'}>{WIND_NAMES[players[bottomIdx].seatWind]}</span>
+            {players[bottomIdx].seatWind === 0 && <span className="text-red-400 text-[8px] ml-0.5">親</span>}
             <span className="ml-0.5">{players[bottomIdx].name}</span>
           </div>
         </div>

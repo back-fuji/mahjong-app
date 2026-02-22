@@ -55,6 +55,29 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
     // 縦並び表示（左右プレイヤー用）
     return (
       <div className="flex flex-col items-center gap-0.5">
+        {/* 副露（上に表示 - 画面からはみ出さないように） */}
+        {hasMelds && (
+          <div className="mb-1 flex flex-row items-center gap-1 bg-black/30 rounded px-1 py-0.5">
+            {hand.melds.map((meld, mi) => (
+              <div key={mi} className="flex flex-row items-center">
+                {meld.tiles.map((tile, ti) => {
+                  const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
+                  return (
+                    <TileSVG
+                      key={tile.index}
+                      tile={tile}
+                      width={tileWidth}
+                      height={tileHeight}
+                      sideways={!!isCalled}
+                      faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* 門前手牌 */}
         <div className="flex flex-col items-center">
           {hand.closed.map((tile) => (
@@ -81,29 +104,6 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
               selected={selectedTile?.index === hand.tsumo.index}
               onClick={isCurrentPlayer && onTileClick ? () => onTileClick(hand.tsumo!) : undefined}
             />
-          </div>
-        )}
-
-        {/* 副露（下に離して表示 - 横並びで区別しやすく） */}
-        {hasMelds && (
-          <div className="mt-3 flex flex-row items-center gap-1 border-t border-white/20 pt-1">
-            {hand.melds.map((meld, mi) => (
-              <div key={mi} className="flex flex-row items-center">
-                {meld.tiles.map((tile, ti) => {
-                  const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
-                  return (
-                    <TileSVG
-                      key={tile.index}
-                      tile={tile}
-                      width={tileWidth}
-                      height={tileHeight}
-                      sideways={!!isCalled}
-                      faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
-                    />
-                  );
-                })}
-              </div>
-            ))}
           </div>
         )}
       </div>
@@ -133,25 +133,38 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
           ))}
         </div>
 
-        {/* ツモ牌（少し離す） */}
-        {hand.tsumo && (
-          <div className="ml-2 sm:ml-4" {...makeDragProps(hand.tsumo)} style={{ cursor: isCurrentPlayer && !dimmedSet?.has(hand.tsumo.id) ? 'grab' : undefined }}>
+        {/* ツモ牌（少し離す）- showTiles時はスペースを常に確保して手牌のずれを防止 */}
+        {showTiles ? (
+          <div className="ml-2 sm:ml-4" style={{ width: tileWidth, minWidth: tileWidth }}>
+            {hand.tsumo && (
+              <div {...makeDragProps(hand.tsumo)} style={{ cursor: isCurrentPlayer && !dimmedSet?.has(hand.tsumo.id) ? 'grab' : undefined }}>
+                <TileSVG
+                  tile={hand.tsumo}
+                  width={tileWidth}
+                  height={tileHeight}
+                  faceDown={false}
+                  selected={selectedTile?.index === hand.tsumo.index}
+                  highlighted={!!highlightSet?.has(hand.tsumo.id)}
+                  dimmed={!!dimmedSet?.has(hand.tsumo.id)}
+                  onClick={isCurrentPlayer && onTileClick && !dimmedSet?.has(hand.tsumo.id) ? () => onTileClick(hand.tsumo!) : undefined}
+                />
+              </div>
+            )}
+          </div>
+        ) : hand.tsumo ? (
+          <div className="ml-2 sm:ml-4">
             <TileSVG
               tile={hand.tsumo}
               width={tileWidth}
               height={tileHeight}
-              faceDown={!showTiles}
-              selected={selectedTile?.index === hand.tsumo.index}
-              highlighted={!!highlightSet?.has(hand.tsumo.id)}
-              dimmed={!!dimmedSet?.has(hand.tsumo.id)}
-              onClick={isCurrentPlayer && onTileClick && !dimmedSet?.has(hand.tsumo.id) ? () => onTileClick(hand.tsumo!) : undefined}
+              faceDown={true}
             />
           </div>
-        )}
+        ) : null}
 
         {/* 副露（右側に離して表示） */}
         {hasMelds && (
-          <div className="ml-3 sm:ml-8 pl-2 sm:pl-3 border-l border-white/20 flex items-end gap-1 sm:gap-2">
+          <div className="ml-2 sm:ml-4 pl-1 sm:pl-2 flex items-end gap-1 sm:gap-2 bg-black/30 rounded py-0.5 px-1">
             {hand.melds.map((meld, mi) => (
               <div key={mi} className="flex items-end">
                 {meld.tiles.map((tile, ti) => {

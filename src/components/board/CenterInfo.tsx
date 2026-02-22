@@ -30,16 +30,24 @@ export const CenterInfo: React.FC<CenterInfoProps> = ({ round, players, currentP
 
   const PlayerCell: React.FC<{ player: Player; playerIndex: number }> = ({ player, playerIndex }) => {
     const isCurrent = playerIndex === currentPlayer;
+    const isDealer = player.seatWind === 0; // 東家 = 親
     return (
       <div
         className={`${compact ? 'px-1 py-0' : 'px-1.5 py-0.5'} rounded text-center ${compact ? 'min-w-[40px]' : 'min-w-[60px]'} transition-all ${
-          isCurrent
-            ? 'bg-yellow-500/30 text-white ring-1 ring-yellow-400'
-            : 'bg-green-800/50 text-gray-300'
+          isDealer
+            ? isCurrent
+              ? 'bg-red-500/40 text-white ring-1 ring-red-400'
+              : 'bg-red-900/50 text-red-100 ring-1 ring-red-500/50'
+            : isCurrent
+              ? 'bg-yellow-500/30 text-white ring-1 ring-yellow-400'
+              : 'bg-green-800/50 text-gray-300'
         }`}
       >
-        <div className={`${compact ? 'text-[9px]' : 'text-sm'} font-bold leading-tight ${isCurrent ? 'text-yellow-300' : 'text-gray-400'}`}>
+        <div className={`${compact ? 'text-[9px]' : 'text-sm'} font-bold leading-tight ${
+          isDealer ? 'text-red-300' : isCurrent ? 'text-yellow-300' : 'text-gray-400'
+        }`}>
           {WIND_NAMES[player.seatWind]}
+          {isDealer && <span className={`ml-0.5 ${compact ? 'text-[7px]' : 'text-[10px]'} text-red-400`}>親</span>}
         </div>
         <div className={`${compact ? 'text-[8px]' : 'text-xs'} font-mono leading-tight`}>{player.score.toLocaleString()}</div>
       </div>

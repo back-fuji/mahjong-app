@@ -150,6 +150,36 @@ body {
 }
 .cutin-riichi-band { animation: cutin-riichi-band 2s ease-in-out forwards; }
 
+/* 方向付きスライドイン（ロン・ツモ用） */
+@keyframes slide-from-bottom {
+  0% { transform: translateY(100vh); opacity: 0; }
+  20% { transform: translateY(0); opacity: 1; }
+  80% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+@keyframes slide-from-top {
+  0% { transform: translateY(-100vh); opacity: 0; }
+  20% { transform: translateY(0); opacity: 1; }
+  80% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+@keyframes slide-from-left {
+  0% { transform: translateX(-100vw); opacity: 0; }
+  20% { transform: translateX(0); opacity: 1; }
+  80% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+@keyframes slide-from-right {
+  0% { transform: translateX(100vw); opacity: 0; }
+  20% { transform: translateX(0); opacity: 1; }
+  80% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+.slide-in-bottom { animation: slide-from-bottom 2s ease-out forwards; }
+.slide-in-top { animation: slide-from-top 2s ease-out forwards; }
+.slide-in-left { animation: slide-from-left 2s ease-out forwards; }
+.slide-in-right { animation: slide-from-right 2s ease-out forwards; }
+
 /* === SP横向き強制（ゲーム画面用） === */
 @media (max-width: 768px) and (orientation: portrait) {
   .sp-force-landscape {

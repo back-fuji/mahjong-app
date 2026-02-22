@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { TileInstance } from '../core/types/tile.ts';
 import { TileSVG } from '../components/tile/TileSVG.tsx';
 import { DiscardPool } from '../components/board/DiscardPool.tsx';
@@ -51,6 +52,7 @@ interface OnlineGamePageProps {
 }
 
 export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendAction }) => {
+  const navigate = useNavigate();
   const [selectedTile, setSelectedTile] = React.useState<TileInstance | null>(null);
 
   if (!gameState) return null;
@@ -90,6 +92,22 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
 
   return (
     <div className="w-full h-[100dvh] bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none sp-force-landscape">
+      {/* ホームボタン（右上） */}
+      <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50">
+        <button
+          onClick={() => {
+            if (window.confirm('ホームに戻りますか？（対局は中断されます）')) {
+              navigate('/');
+            }
+          }}
+          className="w-8 h-8 sm:w-9 sm:h-9 bg-black/30 backdrop-blur-md border border-white/20 rounded-full
+            text-white/70 hover:text-white hover:bg-black/50 transition-all text-sm sm:text-base font-bold"
+          title="ホーム"
+        >
+          &#x2302;
+        </button>
+      </div>
+
       {/* ステータスインジケーター（グラスUI）
           SP: 打牌ボタンのすぐ上、左寄せ
           PC: 画面最左、縦中央 */}

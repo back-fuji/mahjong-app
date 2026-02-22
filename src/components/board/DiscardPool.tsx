@@ -7,6 +7,8 @@ interface DiscardPoolProps {
   discards: TileInstance[];
   /** リーチ宣言牌の捨て牌配列中のインデックス (-1なら未リーチ) */
   riichiDiscardIndex: number;
+  /** リーチ宣言牌のユニークID（tile.index）。指定時はこちらで照合 */
+  riichiTileUniqueIndex?: number;
   tileWidth?: number;
   tileHeight?: number;
   /** 最後の捨て牌をハイライト */
@@ -123,10 +125,9 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
           row.length > 0 && (
             <div key={ri} className="flex flex-row-reverse">
               {row.map((tile, ti) => {
-                // 元のインデックスを復元
+                // 元のインデックスを復元（tiは元の行内順序をそのまま保持）
                 const origRowIdx = 3 - ri;
-                const origTileIdx = row.length - 1 - ti;
-                const globalIdx = origRowIdx * 6 + origTileIdx;
+                const globalIdx = origRowIdx * 6 + ti;
                 const isRiichi = riichiTurn >= 0 && globalIdx === riichiTurn;
                 return (
                   <TileSVG

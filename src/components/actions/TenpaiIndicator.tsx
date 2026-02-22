@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { TileId, TileInstance } from '../../core/types/tile.ts';
 import type { GameState } from '../../core/types/game-state.ts';
 import { TILE_NAMES } from '../../core/types/tile.ts';
@@ -79,6 +79,12 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
   humanPlayerIndex,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [isPC, setIsPC] = useState(false);
+
+  useEffect(() => {
+    // タッチデバイスでなければPCとみなす
+    setIsPC(!('ontouchstart' in window));
+  }, []);
 
   const tenpaiInfo = useMemo(() => {
     const player = gameState.players[humanPlayerIndex];
@@ -147,8 +153,8 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
           </span>
         </div>
 
-        {/* ツールチップ: 待ち牌一覧 */}
-        {showTooltip && (
+        {/* ツールチップ: 待ち牌一覧（PCでは常時表示） */}
+        {(isPC || showTooltip) && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[100]
             bg-gray-900/95 backdrop-blur-md border border-orange-400/40 rounded-xl p-3 shadow-2xl
             min-w-[200px]"
