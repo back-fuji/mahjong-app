@@ -161,7 +161,7 @@ export const GamePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [riichiKey]);
 
-  // 局結果が和了の場合: 盤面手牌公開(2s) → 盤面+アナウンス(2s) → 結果モーダル
+  // 局結果が和了の場合: アナウンス(2s) → 盤面手牌公開(2s) → 結果モーダル
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
@@ -169,20 +169,20 @@ export const GamePage: React.FC = () => {
       // 和了者の相対位置: 0=自分(下), 1=右(下家), 2=上(対面), 3=左(上家)
       setAgariDirection((agari.winner - humanPlayerIndex + 4) % 4);
 
-      // Step 1: 盤面上で手牌公開（ロン牌ハイライト含む）
-      setShowAgariBoard(true);
-      setShowAnnouncement(false);
+      // Step 1: まずアナウンス（ロン/ツモ カットイン）を表示
+      setShowAnnouncement(true);
+      setShowAgariBoard(false);
       setShowDetailedResult(false);
 
       const timer1 = setTimeout(() => {
-        // Step 2: 盤面を維持したままアナウンス表示（手牌+ロン牌が見える状態）
-        setShowAnnouncement(true);
+        // Step 2: アナウンスを消して盤面上で手牌公開
+        setShowAnnouncement(false);
+        setShowAgariBoard(true);
       }, 2000);
 
       const timer2 = setTimeout(() => {
         // Step 3: 結果モーダル
         setShowAgariBoard(false);
-        setShowAnnouncement(false);
         setShowDetailedResult(true);
       }, 4000);
 

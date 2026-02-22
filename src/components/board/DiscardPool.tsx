@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import type { TileInstance } from '../../core/types/tile.ts';
+import type { TileId, TileInstance } from '../../core/types/tile.ts';
 import { TileSVG } from '../tile/TileSVG.tsx';
 
 interface DiscardPoolProps {
@@ -13,6 +13,8 @@ interface DiscardPoolProps {
   tileHeight?: number;
   /** 最後の捨て牌をハイライト */
   highlightLast?: boolean;
+  /** 手牌で選択した牌の種類（TileId）。同じ種類の捨て牌をハイライト */
+  highlightTileId?: TileId;
   /** プレイヤーの位置（捨て牌の並び方向を制御） */
   position?: 'bottom' | 'top' | 'left' | 'right';
 }
@@ -38,10 +40,14 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
   tileWidth = 30,
   tileHeight = 42,
   highlightLast = false,
+  highlightTileId,
   position = 'bottom',
 }) => {
   const lastIdx = highlightLast && discards.length > 0 ? discards.length - 1 : -1;
   const riichiTurn = riichiDiscardIndex;
+
+  const isHighlighted = (tile: TileInstance, globalIdx: number) =>
+    globalIdx === lastIdx || (highlightTileId != null && tile.id === highlightTileId);
 
   // 横向き: 6枚×4段（流局時24枚対応）
   const rows: TileInstance[][] = [[], [], [], []];
@@ -73,7 +79,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                       width={tileWidth}
                       height={tileHeight}
                       sideways={isRiichi}
-                      highlighted={globalIdx === lastIdx}
+                      highlighted={isHighlighted(tile, globalIdx)}
                     />
                   );
                 })}
@@ -105,7 +111,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                       width={tileWidth}
                       height={tileHeight}
                       sideways={isRiichi}
-                      highlighted={globalIdx === lastIdx}
+                      highlighted={isHighlighted(tile, globalIdx)}
                     />
                   );
                 })}
@@ -136,7 +142,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                     width={tileWidth}
                     height={tileHeight}
                     sideways={isRiichi}
-                    highlighted={globalIdx === lastIdx}
+                    highlighted={isHighlighted(tile, globalIdx)}
                   />
                 );
               })}
@@ -163,7 +169,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                     width={tileWidth}
                     height={tileHeight}
                     sideways={isRiichi}
-                    highlighted={globalIdx === lastIdx}
+                    highlighted={isHighlighted(tile, globalIdx)}
                   />
                 </AnimatedTileWrapper>
               );

@@ -148,6 +148,7 @@ export const Board: React.FC<BoardProps> = ({
             tileWidth={topDiscard.w}
             tileHeight={topDiscard.h}
             highlightLast={effectiveHighlightLastDiscard === topIdx}
+            highlightTileId={selectedTile?.id}
             position="top"
           />
         </div>
@@ -182,6 +183,7 @@ export const Board: React.FC<BoardProps> = ({
               tileWidth={sideDiscard.w}
               tileHeight={sideDiscard.h}
               highlightLast={effectiveHighlightLastDiscard === leftIdx}
+              highlightTileId={selectedTile?.id}
               position="left"
             />
           </div>
@@ -211,6 +213,7 @@ export const Board: React.FC<BoardProps> = ({
               tileWidth={sideDiscard.w}
               tileHeight={sideDiscard.h}
               highlightLast={effectiveHighlightLastDiscard === rightIdx}
+              highlightTileId={selectedTile?.id}
               position="right"
             />
           </div>
@@ -259,6 +262,7 @@ export const Board: React.FC<BoardProps> = ({
             tileWidth={bottomDiscard.w}
             tileHeight={bottomDiscard.h}
             highlightLast={effectiveHighlightLastDiscard === bottomIdx}
+            highlightTileId={selectedTile?.id}
             position="bottom"
           />
         </div>

@@ -131,8 +131,8 @@ export const useGameStore = create<GameStore>((set, get) => {
           return;
         }
         set({ gameState: newState });
-        await delay(300);
-        // 槓後は discard フェーズ → CPU打牌
+        // 鳴き演出(800ms)が終わるまで待機してからCPU打牌
+        await delay(1000);
         await processCpuDiscard(newState);
         return;
       }
@@ -295,8 +295,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         replayRecorder.record('minkan', bestCaller);
         newState = processMinKan(state, bestCaller);
         set({ gameState: newState });
-        // phase is 'discard' → CPU discard
-        await delay(300);
+        // 鳴き演出(800ms)が終わるまで待機してからCPU打牌
+        await delay(1000);
         processCpuDiscard(newState);
         return;
       } else {
@@ -304,8 +304,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         replayRecorder.record('pon', bestCaller);
         newState = processPon(state, bestCaller);
         set({ gameState: newState });
-        // phase is 'discard' → CPU discard
-        await delay(300);
+        // 鳴き演出(800ms)が終わるまで待機してからCPU打牌
+        await delay(1000);
         processCpuDiscard(newState);
         return;
       }
@@ -326,8 +326,8 @@ export const useGameStore = create<GameStore>((set, get) => {
             await delay(300);
             const newState = processChi(state, nextPlayer, chiOpt.tiles);
             set({ gameState: newState });
-            // phase is 'discard' → CPU discard
-            await delay(300);
+            // 鳴き演出(800ms)が終わるまで待機してからCPU打牌
+            await delay(1000);
             processCpuDiscard(newState);
             return;
           }
