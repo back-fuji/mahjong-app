@@ -14,6 +14,8 @@ interface HandDisplayProps {
   showTiles?: boolean;
   /** 縦並び表示（左右のプレイヤー用） */
   vertical?: boolean;
+  /** 左右プレイヤーの位置（手牌の向きを制御） */
+  sidePosition?: 'left' | 'right';
   /** 鳴き対象のハイライト牌ID */
   highlightTileIds?: TileId[];
   /** 喰い替え禁止牌ID（dimmed表示用） */
@@ -31,10 +33,13 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
   tileHeight = 56,
   showTiles = true,
   vertical = false,
+  sidePosition,
   highlightTileIds,
   dimmedTileIds,
   onDragStart,
 }) => {
+  // 左右プレイヤーの手牌は自分の向きに回転（右=反時計回り90度、左=時計回り90度）
+  const tileRotation = sidePosition === 'right' ? -90 as const : sidePosition === 'left' ? 90 as const : undefined;
   const highlightSet = highlightTileIds ? new Set(highlightTileIds) : null;
   const dimmedSet = dimmedTileIds ? new Set(dimmedTileIds) : null;
 
@@ -87,6 +92,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
               width={tileWidth}
               height={tileHeight}
               faceDown={!showTiles}
+              rotation={tileRotation}
               selected={selectedTile?.index === tile.index}
               onClick={isCurrentPlayer && onTileClick ? () => onTileClick(tile) : undefined}
             />
@@ -101,6 +107,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
               width={tileWidth}
               height={tileHeight}
               faceDown={!showTiles}
+              rotation={tileRotation}
               selected={selectedTile?.index === hand.tsumo.index}
               onClick={isCurrentPlayer && onTileClick ? () => onTileClick(hand.tsumo!) : undefined}
             />

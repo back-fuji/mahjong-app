@@ -65,7 +65,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
       <div
         style={{ transform: 'rotate(-90deg)', transformOrigin: 'center center' }}
       >
-        <div className="flex flex-col items-center gap-0">
+        <div className="flex flex-col items-start gap-0">
           {rows.map((row, ri) => (
             row.length > 0 && (
               <div key={ri} className="flex">
@@ -97,7 +97,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
       <div
         style={{ transform: 'rotate(90deg)', transformOrigin: 'center center' }}
       >
-        <div className="flex flex-col items-center gap-0">
+        <div className="flex flex-col items-start gap-0">
           {rows.map((row, ri) => (
             row.length > 0 && (
               <div key={ri} className="flex">
@@ -123,10 +123,10 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
     );
   }
 
-  // 対面（上）は180度回転: 行も牌も逆順に並べる
+  // 対面（上）: 行も牌も逆順に並べ、各牌を180度回転させて対面プレイヤー向きに
   if (position === 'top') {
     return (
-      <div className="flex flex-col items-center gap-0">
+      <div className="flex flex-col items-end gap-0">
         {[...rows].reverse().map((row, ri) => (
           row.length > 0 && (
             <div key={ri} className="flex flex-row-reverse">
@@ -142,6 +142,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                     width={tileWidth}
                     height={tileHeight}
                     sideways={isRiichi}
+                    rotation={180}
                     highlighted={isHighlighted(tile, globalIdx)}
                   />
                 );
@@ -155,7 +156,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
 
   // 自分（下）：通常の向き
   return (
-    <div className="flex flex-col items-center gap-0">
+    <div className="flex flex-col items-start gap-0">
       {rows.map((row, ri) => (
         row.length > 0 && (
           <div key={ri} className="flex">
