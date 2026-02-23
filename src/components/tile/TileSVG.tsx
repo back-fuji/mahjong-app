@@ -141,10 +141,10 @@ export const TileSVG: React.FC<TileSVGProps> = ({
         <rect x="0" y="0" width={width} height={height} rx="3"
           fill="none" stroke="#f97316" strokeWidth="2" opacity="0.85" />
       )}
-      {/* ドラ牌の常時赤枠ハイライト（オレンジと同程度に目立つ） */}
+      {/* ドラ牌の常時赤枠ハイライト（太めで目立つ） */}
       {isDora && !selected && (
         <rect x="0" y="0" width={width} height={height} rx="3"
-          fill="none" stroke="#ef4444" strokeWidth="2.5" opacity="0.95" />
+          fill="none" stroke="#ef4444" strokeWidth="4" opacity="0.95" />
       )}
       {/* クリック可能インジケーター */}
       {isClickable && !selected && (

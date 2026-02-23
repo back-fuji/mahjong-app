@@ -248,41 +248,38 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
 
   const totalRemaining = tenpaiInfo ? tenpaiInfo.reduce((sum, w) => sum + w.remaining, 0) : 0;
 
-  if (!tenpaiInfo && !discardWaitInfo) return null;
+  /** 選択中の牌を捨てるとテンパイになる場合だけ表示（テンパイにならない場合は出さない） */
+  const showDiscardWaits = discardWaitInfo && discardWaitInfo.waits.length > 0;
+
+  if (!tenpaiInfo && !showDiscardWaits) return null;
 
   return (
     <div className="flex flex-col items-end gap-2">
-      {/* 選択中の牌を捨てたときの待ち（テンパイまじか・切り替えで待ちが変わる表示） */}
-      {discardWaitInfo && (
+      {/* 選択中の牌を捨てたときの待ち（テンパイが発生するときだけ表示） */}
+      {showDiscardWaits && discardWaitInfo && (
         <div className="bg-slate-800/95 backdrop-blur-md border border-amber-400/50 rounded-xl p-3 shadow-lg min-w-[180px]">
           <div className="text-amber-300 font-bold text-sm mb-2 text-center">
             この牌を捨てると
           </div>
-          {discardWaitInfo.waits.length === 0 ? (
-            <div className="text-gray-400 text-xs text-center py-1">テンパイにならない</div>
-          ) : (
-            <>
-              <div className="text-amber-200/90 text-xs mb-1.5 text-center">待ち</div>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {discardWaitInfo.details.map(({ tileId, remaining, hasYaku }) => (
-                  <div key={tileId} className={`flex flex-col items-center gap-0.5 ${!hasYaku ? 'opacity-50' : ''}`}>
-                    <div className="relative">
-                      <TileSVG tileId={tileId} width={28} height={38} />
-                      {!hasYaku && (
-                        <div className="absolute -top-0.5 -right-0.5 bg-gray-600 text-white text-[7px] font-bold px-0.5 py-px rounded leading-none">
-                          無役
-                        </div>
-                      )}
+          <div className="text-amber-200/90 text-xs mb-1.5 text-center">待ち</div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {discardWaitInfo.details.map(({ tileId, remaining, hasYaku }) => (
+              <div key={tileId} className={`flex flex-col items-center gap-0.5 ${!hasYaku ? 'opacity-50' : ''}`}>
+                <div className="relative">
+                  <TileSVG tileId={tileId} width={28} height={38} />
+                  {!hasYaku && (
+                    <div className="absolute -top-0.5 -right-0.5 bg-gray-600 text-white text-[7px] font-bold px-0.5 py-px rounded leading-none">
+                      無役
                     </div>
-                    <span className="text-[10px] text-white/80">{TILE_NAMES[tileId]}</span>
-                    <span className={`text-[10px] font-bold ${!hasYaku ? 'text-gray-400' : remaining > 0 ? 'text-amber-300' : 'text-red-400'}`}>
-                      残{remaining}枚
-                    </span>
-                  </div>
-                ))}
+                  )}
+                </div>
+                <span className="text-[10px] text-white/80">{TILE_NAMES[tileId]}</span>
+                <span className={`text-[10px] font-bold ${!hasYaku ? 'text-gray-400' : remaining > 0 ? 'text-amber-300' : 'text-red-400'}`}>
+                  残{remaining}枚
+                </span>
               </div>
-            </>
-          )}
+            ))}
+          </div>
         </div>
       )}
 
