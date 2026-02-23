@@ -100,6 +100,62 @@ function findAllDecompositions(
   }
 }
 
+/**
+ * 雀頭＋面子N組の分解（1〜3副露用）
+ * 門前が 2+3n 枚のとき、雀頭1つ＋面子n組のパターンを列挙する
+ */
+export function decomposeWithNMentsu(counts: TileCount34, n: number): MentsuDecomposition[] {
+  const results: MentsuDecomposition[] = [];
+  const total = counts.reduce((a, b) => a + b, 0);
+  if (n < 1 || n > 3 || total !== 2 + 3 * n) return results;
+  const c = counts.map(x => x);
+  for (let j = 0; j < 34; j++) {
+    if (c[j] < 2) continue;
+    c[j] -= 2;
+    const mentsuList: MentsuGroup[] = [];
+    findNMentsu(c, 0, mentsuList, j as TileId, n, results);
+    c[j] += 2;
+  }
+  return deduplicateDecompositions(results);
+}
+
+function findNMentsu(
+  counts: number[],
+  startIdx: number,
+  current: MentsuGroup[],
+  jantai: TileId,
+  targetN: number,
+  results: MentsuDecomposition[],
+): void {
+  if (current.length === targetN) {
+    if (counts.every(x => x === 0)) {
+      results.push({ jantai, mentsu: [...current] });
+    }
+    return;
+  }
+  for (let i = startIdx; i < 34; i++) {
+    if (counts[i] === 0) continue;
+    if (counts[i] >= 3) {
+      counts[i] -= 3;
+      current.push({ type: 'koutsu', tiles: [i, i, i] });
+      findNMentsu(counts, i, current, jantai, targetN, results);
+      current.pop();
+      counts[i] += 3;
+    }
+    if (i < 27 && i % 9 <= 6 && counts[i] >= 1 && counts[i + 1] >= 1 && counts[i + 2] >= 1) {
+      counts[i]--;
+      counts[i + 1]--;
+      counts[i + 2]--;
+      current.push({ type: 'shuntsu', tiles: [i, i + 1, i + 2] });
+      findNMentsu(counts, i, current, jantai, targetN, results);
+      current.pop();
+      counts[i]++;
+      counts[i + 1]++;
+      counts[i + 2]++;
+    }
+  }
+}
+
 /** 面子を抽出できるか（簡易チェック） */
 function extractMentsu(counts: number[], idx: number, mentsu: MentsuGroup[]): boolean {
   // 最初の非ゼロを見つける

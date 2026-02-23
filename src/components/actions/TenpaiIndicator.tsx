@@ -187,10 +187,14 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
     if (!selectedTile) return null;
     const player = gameState.players[humanPlayerIndex];
     const hand = player.hand;
-    const allTiles = [...hand.closed, ...(hand.tsumo ? [hand.tsumo] : [])];
-    if (allTiles.length !== 14) return null;
+    if (!hand.tsumo) return null; // ツモ牌があるときだけ「捨てるとテンパイ」を判定
+    const allTiles = [...hand.closed, hand.tsumo];
+    const meldCount = hand.melds.length;
+    const expectedInHand = 14 - meldCount * 3; // 門前14枚 / 1副露11枚 / 2副露8枚 / 3副露5枚 / 4副露2枚
+    if (allTiles.length !== expectedInHand) return null;
     const remaining = allTiles.filter(t => t.index !== selectedTile.index);
-    if (remaining.length !== 13) return null;
+    const expectedRemaining = 13 - meldCount * 3;
+    if (remaining.length !== expectedRemaining) return null;
     const counts = toCount34(remaining);
     const waits = getWaitingTiles(counts, hand.melds);
     if (waits.length === 0) return { waits: [] as TileId[], withYaku: [] as TileId[] };

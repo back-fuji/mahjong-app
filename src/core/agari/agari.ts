@@ -2,7 +2,7 @@ import type { TileCount34, TileId } from '../types/tile.ts';
 import type { MentsuDecomposition } from '../types/hand.ts';
 import type { Meld } from '../types/meld.ts';
 import { MeldType } from '../types/meld.ts';
-import { decompose, isChiitoitsu, isKokushi } from '../hand/hand-utils.ts';
+import { decompose, decomposeWithNMentsu, isChiitoitsu, isKokushi } from '../hand/hand-utils.ts';
 import { isYaochu } from '../tile/tile-utils.ts';
 
 /** 和了形の種類 */
@@ -42,9 +42,27 @@ export function checkAgari(closedCounts: TileCount34, melds: Meld[] = []): Agari
 
   // 通常形（雀頭+面子4組）
   const neededMentsu = 4 - melds.length;
-  const decompositions = decompose(closedCounts);
 
-  // 副露数を考慮してフィルタ
+  // 4副露：門前は雀頭2枚のみ（単騎待ち）。decompose は面子4組を列挙するため雀頭だけの形を返さないのでここで判定
+  if (melds.length === 4 && closedCount === 2) {
+    for (let i = 0; i < 34; i++) {
+      if (closedCounts[i] === 2) {
+        return { type: 'regular', decompositions: [{ jantai: i as TileId, mentsu: [] }] };
+      }
+    }
+    return null; // 2枚が対子でない（あり得ない）
+  }
+
+  // 1〜3副露：門前は 11/8/5 枚。decompose は面子4組のみ返すため、雀頭＋N面子用の分解を別途取得
+  if (melds.length >= 1 && melds.length <= 3 && closedCount === 2 + 3 * neededMentsu) {
+    const partial = decomposeWithNMentsu(closedCounts, neededMentsu);
+    if (partial.length > 0) {
+      return { type: 'regular', decompositions: partial };
+    }
+  }
+
+  // 0副露：門前14枚は decompose で雀頭＋面子4組の分解を取得
+  const decompositions = decompose(closedCounts);
   const valid = decompositions.filter(d => d.mentsu.length === neededMentsu);
 
   if (valid.length > 0) {
