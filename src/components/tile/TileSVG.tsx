@@ -23,9 +23,9 @@ interface TileSVGProps {
 function getTileImagePath(tileId: number, isRed: boolean): string {
   // 赤ドラ
   if (isRed) {
-    if (tileId === 4)  return '/tiles/aka1-66-90-l.png'; // 赤五萬
-    if (tileId === 13) return '/tiles/aka2-66-90-l.png'; // 赤五筒
-    if (tileId === 22) return '/tiles/aka3-66-90-l.png'; // 赤五索
+    if (tileId === 4)  return '/tiles/aka3-66-90-l.png'; // 赤五萬
+    if (tileId === 13) return '/tiles/aka1-66-90-l.png'; // 赤五筒
+    if (tileId === 22) return '/tiles/aka2-66-90-l.png'; // 赤五索
   }
   // 萬子 (tileId 0-8)
   if (tileId >= 0 && tileId <= 8) {

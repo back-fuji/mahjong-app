@@ -56,7 +56,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const navigate = useNavigate();
   const [selectedTile, setSelectedTile] = React.useState<TileInstance | null>(null);
 
-  // 和了演出: 画像表示(0.7s) → 盤面手牌公開(0.5s) → 結果モーダル
+  // 和了演出: 画像表示(2.0s) → 結果モーダル
   const [showAgariImage, setShowAgariImage] = React.useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = React.useState(false);
   const [agariDirection, setAgariDirection] = React.useState(0);
@@ -72,8 +72,8 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       setShowAgariImage(true);
       setShowDetailedResult(false);
 
-      const t1 = setTimeout(() => setShowAgariImage(false), 700);
-      const t2 = setTimeout(() => setShowDetailedResult(true), 1200);
+      const t1 = setTimeout(() => setShowAgariImage(false), 2000);
+      const t2 = setTimeout(() => setShowDetailedResult(true), 2000);
       return () => { clearTimeout(t1); clearTimeout(t2); };
     } else if (gameState.phase === 'round_result') {
       setShowAgariImage(false);

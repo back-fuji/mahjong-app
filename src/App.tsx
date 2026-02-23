@@ -49,7 +49,9 @@ function GameRoute() {
   }, [gameState, startGame]);
 
   if (!gameState) {
-    return isMobilePortrait ? <LandscapePrompt /> : null;
+    // デバッグ用: オーバーレイ常時非表示
+    // return isMobilePortrait ? <LandscapePrompt /> : null;
+    return null;
   }
 
   return <GamePage />;

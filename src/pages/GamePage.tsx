@@ -162,7 +162,7 @@ export const GamePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [riichiKey]);
 
-  // 局結果が和了の場合: 画像表示(1.2s) → 盤面手牌公開(1.0s) → 結果モーダル
+  // 局結果が和了の場合: 画像表示(2.0s) → 盤面手牌公開(2.0s) → 結果モーダル
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
@@ -170,22 +170,22 @@ export const GamePage: React.FC = () => {
       // 和了者の相対位置: 0=自分(下), 1=右(下家), 2=上(対面), 3=左(上家)
       setAgariDirection((agari.winner - humanPlayerIndex + 4) % 4);
 
-      // Step 1: 画像表示（1.2s）
+      // Step 1: 画像表示（2.0s）
       setShowAgariImage(true);
       setShowAgariBoard(false);
       setShowDetailedResult(false);
 
       const timer1 = setTimeout(() => {
-        // Step 2: 画像消去 → 盤面上で手牌公開（1.0s）
+        // Step 2: 画像消去 → 盤面上で手牌公開（2.0s）
         setShowAgariImage(false);
         setShowAgariBoard(true);
-      }, 1200);
+      }, 2000);
 
       const timer2 = setTimeout(() => {
         // Step 3: 結果モーダル
         setShowAgariBoard(false);
         setShowDetailedResult(true);
-      }, 2200);
+      }, 4000);
 
       return () => {
         clearTimeout(timer1);
@@ -374,7 +374,8 @@ export const GamePage: React.FC = () => {
 
   return (
     <>
-      {isMobilePortrait && <LandscapePrompt />}
+      {/* デバッグ用: オーバーレイ常時非表示 */}
+      {/* {isMobilePortrait && <LandscapePrompt />} */}
       <div className="w-full h-[100dvh] bg-green-900 overflow-hidden relative sp-force-landscape" onClick={handleBackgroundClick}>
       {/* ヘルプ・役一覧ボタン（右上） */}
       <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 flex gap-1">
