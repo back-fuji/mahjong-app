@@ -34,19 +34,28 @@ const ActionButton: React.FC<{
   imageSrc?: string;
 }> = ({ label, onClick, borderColor, visible, glowOrange = false, compact = false, imageSrc }) => {
   if (!visible) return null;
+  const isImageButton = !!imageSrc;
   return (
     <button
       onClick={onClick}
       title={label}
-      className={`${compact ? 'px-2 py-1 min-w-[36px]' : 'px-3 py-2 sm:px-4 min-w-[48px]'} rounded-xl font-bold text-white shadow-lg transition-all
-        hover:scale-105 active:scale-95 backdrop-blur-md border flex items-center justify-center
+      className={`rounded-xl font-bold text-white shadow-lg transition-all
+        hover:scale-105 active:scale-95 backdrop-blur-md border flex items-center justify-center overflow-hidden
+        ${isImageButton
+          ? compact
+            ? 'w-10 h-9 min-w-[40px] min-h-[36px] p-0'
+            : 'w-14 h-12 sm:w-16 sm:h-14 min-w-[56px] min-h-[48px] sm:min-w-[64px] sm:min-h-[56px] p-0'
+          : compact
+            ? 'px-2 py-1 min-w-[36px]'
+            : 'px-3 py-2 sm:px-4 min-w-[48px]'
+        }
         ${glowOrange
           ? 'bg-orange-500/30 border-orange-400 ring-2 ring-orange-400/60 shadow-orange-500/40 hover:bg-orange-500/40'
           : `bg-white/10 ${borderColor} hover:bg-white/20`
         }`}
     >
       {imageSrc ? (
-        <img src={imageSrc} alt={label} className={compact ? 'h-5 w-auto' : 'h-6 sm:h-7 w-auto'} />
+        <img src={imageSrc} alt={label} className="w-full h-full object-cover" />
       ) : (
         <span className={compact ? 'text-xs' : 'text-sm sm:text-base'}>{label}</span>
       )}
