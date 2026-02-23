@@ -69,8 +69,8 @@ export const ActionBar: React.FC<ActionBarProps> = (props) => {
   return (
     <div className={`${positionClass} flex flex-row flex-wrap gap-1.5 sm:gap-2 z-50
       bg-black/20 backdrop-blur-md border border-white/15 rounded-2xl ${isMobileLandscape ? 'px-1.5 py-1' : 'px-2 py-2 sm:px-3 sm:py-3'} max-w-[90vw] justify-center`}>
-      <ActionButton label="ツモ" imageSrc="/agari/tsumo.svg" onClick={props.onTsumoAgari} borderColor="border-red-400/50" visible={props.canTsumoAgari} compact={isMobileLandscape} />
-      <ActionButton label="ロン" imageSrc="/agari/ron.svg" onClick={props.onRon} borderColor="border-red-400/50" visible={props.canRon} compact={isMobileLandscape} />
+      <ActionButton label="ツモ" imageSrc="/agari/tumo.png" onClick={props.onTsumoAgari} borderColor="border-red-400/50" visible={props.canTsumoAgari} compact={isMobileLandscape} />
+      <ActionButton label="ロン" imageSrc="/agari/ron.png" onClick={props.onRon} borderColor="border-red-400/50" visible={props.canRon} compact={isMobileLandscape} />
       <ActionButton label="リーチ" onClick={props.onRiichi} borderColor="border-yellow-400/50" visible={props.canRiichi} compact={isMobileLandscape} />
       <ActionButton label="カン" onClick={props.onKan} borderColor="border-orange-400/70" visible={props.canKan} glowOrange compact={isMobileLandscape} />
       <ActionButton label="ポン" onClick={props.onPon} borderColor="border-orange-400/70" visible={props.canPon} glowOrange compact={isMobileLandscape} />

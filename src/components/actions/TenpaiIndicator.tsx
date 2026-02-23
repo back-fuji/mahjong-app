@@ -182,37 +182,40 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
     setIsPC(!('ontouchstart' in window));
   }, []);
 
-  /** 選択中の牌を捨てたときの待ち（テンパイまじか用） */
-  const discardWaitInfo = useMemo(() => {
-    if (!selectedTile) return null;
+  /** 捨てるとテンパイになる牌の一覧（選択前でも表示するため、手牌全牌を走査） */
+  const allDiscardToTenpaiOptions = useMemo(() => {
     const player = gameState.players[humanPlayerIndex];
     const hand = player.hand;
-    if (!hand.tsumo) return null; // ツモ牌があるときだけ「捨てるとテンパイ」を判定
+    if (!hand.tsumo) return [];
     const allTiles = [...hand.closed, hand.tsumo];
     const meldCount = hand.melds.length;
-    const expectedInHand = 14 - meldCount * 3; // 門前14枚 / 1副露11枚 / 2副露8枚 / 3副露5枚 / 4副露2枚
-    if (allTiles.length !== expectedInHand) return null;
-    const remaining = allTiles.filter(t => t.index !== selectedTile.index);
+    const expectedInHand = 14 - meldCount * 3;
+    if (allTiles.length !== expectedInHand) return [];
     const expectedRemaining = 13 - meldCount * 3;
-    if (remaining.length !== expectedRemaining) return null;
-    const counts = toCount34(remaining);
-    const waits = getWaitingTiles(counts, hand.melds);
-    if (waits.length === 0) return { waits: [] as TileId[], withYaku: [] as TileId[] };
-    const withYaku = waits.filter(tileId => {
-      const counts14 = [...counts];
-      counts14[tileId]++;
-      return hasYakuForHand(counts14, hand.melds, tileId, gameState, humanPlayerIndex);
-    });
-    return {
-      waits,
-      withYaku,
-      details: waits.map(tileId => ({
-        tileId,
-        remaining: countRemainingTiles(tileId, gameState, humanPlayerIndex),
-        hasYaku: withYaku.includes(tileId),
-      })),
-    };
-  }, [gameState, humanPlayerIndex, selectedTile]);
+    const options: { discardTile: TileInstance; waits: TileId[]; details: { tileId: TileId; remaining: number; hasYaku: boolean }[] }[] = [];
+    for (const discardTile of allTiles) {
+      const remaining = allTiles.filter(t => t.index !== discardTile.index);
+      if (remaining.length !== expectedRemaining) continue;
+      const counts = toCount34(remaining);
+      const waits = getWaitingTiles(counts, hand.melds);
+      if (waits.length === 0) continue;
+      const withYaku = waits.filter(tileId => {
+        const counts14 = [...counts];
+        counts14[tileId]++;
+        return hasYakuForHand(counts14, hand.melds, tileId, gameState, humanPlayerIndex);
+      });
+      options.push({
+        discardTile,
+        waits,
+        details: waits.map(tileId => ({
+          tileId,
+          remaining: countRemainingTiles(tileId, gameState, humanPlayerIndex),
+          hasYaku: withYaku.includes(tileId),
+        })),
+      });
+    }
+    return options;
+  }, [gameState, humanPlayerIndex]);
 
   const tenpaiInfo = useMemo(() => {
     const player = gameState.players[humanPlayerIndex];
@@ -252,37 +255,46 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
 
   const totalRemaining = tenpaiInfo ? tenpaiInfo.reduce((sum, w) => sum + w.remaining, 0) : 0;
 
-  /** 選択中の牌を捨てるとテンパイになる場合だけ表示（テンパイにならない場合は出さない） */
-  const showDiscardWaits = discardWaitInfo && discardWaitInfo.waits.length > 0;
+  /** 捨てるとテンパイになる牌が1つでもあればパネル表示（選択前でも表示してテンパイを逃さない） */
+  const showDiscardPanel = allDiscardToTenpaiOptions.length > 0;
 
-  if (!tenpaiInfo && !showDiscardWaits) return null;
+  if (!tenpaiInfo && !showDiscardPanel) return null;
 
   return (
     <div className="flex flex-col items-end gap-2">
-      {/* 選択中の牌を捨てたときの待ち（テンパイが発生するときだけ表示・手前に表示） */}
-      {showDiscardWaits && discardWaitInfo && (
+      {/* 捨てるとテンパイになる牌一覧（選択前でも表示） */}
+      {showDiscardPanel && (
         <div className="relative z-[110] bg-slate-800/95 backdrop-blur-md border border-amber-400/50 rounded-xl p-3 shadow-lg min-w-[180px]">
           <div className="text-amber-300 font-bold text-sm mb-2 text-center">
-            この牌を捨てると
+            次の牌を捨てるとテンパイ
           </div>
-          <div className="text-amber-200/90 text-xs mb-1.5 text-center">待ち</div>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {discardWaitInfo.details.map(({ tileId, remaining, hasYaku }) => (
-              <div key={tileId} className={`flex flex-col items-center gap-0.5 ${!hasYaku ? 'opacity-50' : ''}`}>
-                <div className="relative">
-                  <TileSVG tileId={tileId} width={28} height={38} />
-                  {!hasYaku && (
-                    <div className="absolute -top-0.5 -right-0.5 bg-gray-600 text-white text-[7px] font-bold px-0.5 py-px rounded leading-none">
-                      無役
+          <div className="space-y-2">
+            {allDiscardToTenpaiOptions.map((opt) => {
+              const isSelected = selectedTile && opt.discardTile.index === selectedTile.index;
+              return (
+                <div
+                  key={opt.discardTile.index}
+                  className={`rounded-lg p-2 ${isSelected ? 'bg-amber-500/20 border border-amber-400/60' : 'bg-slate-700/50'}`}
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <TileSVG tileId={opt.discardTile.id} width={24} height={32} />
+                      <span className="text-amber-200/90 text-xs">→</span>
                     </div>
-                  )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {opt.details.map(({ tileId, remaining, hasYaku }) => (
+                        <div key={tileId} className={`flex flex-col items-center gap-0 ${!hasYaku ? 'opacity-50' : ''}`}>
+                          <TileSVG tileId={tileId} width={22} height={30} />
+                          <span className={`text-[9px] font-bold ${!hasYaku ? 'text-gray-400' : remaining > 0 ? 'text-amber-300' : 'text-red-400'}`}>
+                            残{remaining}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <span className="text-[10px] text-white/80">{TILE_NAMES[tileId]}</span>
-                <span className={`text-[10px] font-bold ${!hasYaku ? 'text-gray-400' : remaining > 0 ? 'text-amber-300' : 'text-red-400'}`}>
-                  残{remaining}枚
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
