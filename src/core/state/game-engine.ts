@@ -444,6 +444,11 @@ export function processPon(state: GameState, callerIdx: number): GameState {
   caller.kuikaeDisallowedTiles = [discardTile.id];
   players[callerIdx] = caller;
 
+  // 打牌者の捨て牌から鳴かれた牌を除去（消費する）
+  const discarder = { ...players[fromIdx] };
+  discarder.discards = discarder.discards.slice(0, -1);
+  players[fromIdx] = discarder;
+
   // 全員の一発消し
   for (let i = 0; i < 4; i++) {
     if (players[i].isIppatsu) {
@@ -465,6 +470,7 @@ export function processPon(state: GameState, callerIdx: number): GameState {
 /** チー処理 */
 export function processChi(state: GameState, callerIdx: number, tiles: TileId[]): GameState {
   const discardTile = state.lastDiscard!.tile;
+  const fromIdx = state.lastDiscard!.playerIndex;
   const players = [...state.players];
   const caller = { ...players[callerIdx] };
 
@@ -523,6 +529,11 @@ export function processChi(state: GameState, callerIdx: number, tiles: TileId[])
   caller.kuikaeDisallowedTiles = kuikaeDisallowed;
   players[callerIdx] = caller;
 
+  // 打牌者の捨て牌から鳴かれた牌を除去（消費する）
+  const discarder = { ...players[fromIdx] };
+  discarder.discards = discarder.discards.slice(0, -1);
+  players[fromIdx] = discarder;
+
   for (let i = 0; i < 4; i++) {
     if (players[i].isIppatsu) {
       players[i] = { ...players[i], isIppatsu: false };
@@ -576,6 +587,11 @@ export function processMinKan(state: GameState, callerIdx: number): GameState {
   };
   caller.isMenzen = false;
   players[callerIdx] = caller;
+
+  // 打牌者の捨て牌から鳴かれた牌を除去（消費する）
+  const discarder = { ...players[fromIdx] };
+  discarder.discards = discarder.discards.slice(0, -1);
+  players[fromIdx] = discarder;
 
   // 全員の一発消し
   for (let i = 0; i < 4; i++) {

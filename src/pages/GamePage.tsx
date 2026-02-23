@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobilePortrait } from '../hooks/useIsMobilePortrait.ts';
+import { useWindowSize } from '../hooks/useWindowSize.ts';
 import { LandscapePrompt } from '../components/LandscapePrompt.tsx';
 import { DraggableStatusIndicator } from '../components/DraggableStatusIndicator.tsx';
 import { useGameStore } from '../store/gameStore.ts';
@@ -20,6 +21,8 @@ import { saveGameHistory } from '../db/game-history.ts';
 import { checkRoundAchievements, checkGameEndAchievements, setAchievementUnlockCallback } from '../achievements/achievement-tracker.ts';
 import type { TileInstance } from '../core/types/tile.ts';
 import { TILE_NAMES } from '../core/types/tile.ts';
+import { getWaitingTiles } from '../core/agari/agari.ts';
+import { toCount34 } from '../core/tile/tile-utils.ts';
 
 /** フェーズに応じた状態メッセージ（グラスUI用：border色で状態を表す） */
 function getPhaseMessage(
@@ -74,8 +77,13 @@ export const GamePage: React.FC = () => {
   const declareKyuushu = useGameStore(s => s.declareKyuushu);
   const nextRound = useGameStore(s => s.nextRound);
   const actions = useGameStore(s => s.getAvailableActions)();
+  const { isMobileLandscape } = useWindowSize();
+  const hasActionBar = actions.canTsumoAgari || actions.canRon || actions.canRiichi ||
+    actions.canChi || actions.canPon || actions.canKan || actions.canKyuushu || actions.canSkip;
+  const showDiscardButton = Boolean(selectedTile && actions.canDiscard);
+  const groupBottomLeft = isMobileLandscape && hasActionBar && showDiscardButton;
 
-  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(2.0s) → 盤面手牌公開(2.0s) → 結果モーダル
+  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(ツモ4s/ロン6s) → 盤面手牌公開(2.0s) → 結果モーダル
   const [showAgariVideo, setShowAgariVideo] = useState(false);
   const [showAgariImage, setShowAgariImage] = useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = useState(false);
@@ -199,19 +207,22 @@ export const GamePage: React.FC = () => {
           clearTimeout(timer2);
         };
       } else {
-        // 他者が和了: 画像(2.0s) → 手牌公開(2.0s) → 結果モーダル
+        // 他者が和了: ツモ画像(4s) / ロン画像(6s) → 手牌公開(2.0s) → 結果モーダル
         setShowAgariVideo(false);
         setShowAgariImage(true);
+
+        const imageDuration = agari.isTsumo ? 4000 : 6000; // ツモ4秒 / ロン6秒（従来の2倍）
+        const boardDuration = 2000;
 
         const timer1 = setTimeout(() => {
           setShowAgariImage(false);
           setShowAgariBoard(true);
-        }, 2000);
+        }, imageDuration);
 
         const timer2 = setTimeout(() => {
           setShowAgariBoard(false);
           setShowDetailedResult(true);
-        }, 4000);
+        }, imageDuration + boardDuration);
 
         return () => {
           clearTimeout(timer1);
@@ -424,13 +435,39 @@ export const GamePage: React.FC = () => {
 
   const isMyTurn = gameState.currentPlayer === humanPlayerIndex;
   const canCall = actions.canPon || actions.canChi || actions.canRon;
-  const phaseInfo = getPhaseMessage(
+
+  // テンパイ状態で「この牌を捨てるとテンパイにならない」選択をしているか
+  const discardSelectedLosesTenpai = (() => {
+    if (gameState.phase !== 'discard' || !selectedTile || !actions.canDiscard) return false;
+    const player = gameState.players[humanPlayerIndex];
+    const hand = player.hand;
+    const allTiles = [...hand.closed, ...(hand.tsumo ? [hand.tsumo] : [])];
+    if (allTiles.length !== 14) return false;
+    const remaining = allTiles.filter(t => t.index !== selectedTile.index);
+    if (remaining.length !== 13) return false;
+    const counts13 = toCount34(remaining);
+    const waitsAfterDiscard = getWaitingTiles(counts13, hand.melds);
+    if (waitsAfterDiscard.length > 0) return false; // 捨ててもテンパイ
+    const isCurrentTenpai = allTiles.some(t => {
+      const rest = allTiles.filter(x => x.index !== t.index);
+      return getWaitingTiles(toCount34(rest), hand.melds).length > 0;
+    });
+    return isCurrentTenpai;
+  })();
+
+  let phaseInfo = getPhaseMessage(
     gameState.phase,
     isMyTurn,
     selectedTile,
     actions.canDiscard,
     canCall
   );
+  if (discardSelectedLosesTenpai && selectedTile) {
+    phaseInfo = {
+      ...phaseInfo,
+      hint: 'この牌を捨てるとテンパイにならない',
+    };
+  }
 
   return (
     <>
@@ -503,47 +540,90 @@ export const GamePage: React.FC = () => {
         } : undefined}
       />
 
-      {!showAgariBoard && <ActionBar
-        canTsumoAgari={actions.canTsumoAgari}
-        canRon={actions.canRon}
-        canRiichi={actions.canRiichi}
-        canChi={actions.canChi}
-        canPon={actions.canPon}
-        canKan={actions.canKan}
-        canSkip={actions.canSkip}
-        canKyuushu={actions.canKyuushu}
-        onTsumoAgari={declareTsumoAgari}
-        onRon={declareRon}
-        onRiichi={() => {
-          if (selectedTile && actions.riichiTiles.some(t => t.index === selectedTile.index)) {
-            declareRiichi(selectedTile);
-          }
-        }}
-        onChi={() => {
-          if (actions.chiOptions.length > 1) {
-            setShowChiSelector(true);
-          } else if (actions.chiOptions.length === 1) {
-            callChi(actions.chiOptions[0]);
-          }
-        }}
-        onPon={callPon}
-        onKan={() => callKan(actions.kanTiles[0])}
-        onSkip={skipCall}
-        onKyuushu={declareKyuushu}
-      />}
-
-      {/* 打牌ボタン（左下） */}
-      {selectedTile && actions.canDiscard && (
-        <div className="fixed bottom-2 left-2 sm:bottom-6 sm:left-6 z-40">
+      {/* 左下: リーチと打牌が被らないよう、両方出る場合は1行に並べる */}
+      {groupBottomLeft ? (
+        <div className="fixed bottom-2 left-2 z-50 flex flex-row items-center gap-2 flex-wrap">
+          <ActionBar
+            inline
+            canTsumoAgari={actions.canTsumoAgari}
+            canRon={actions.canRon}
+            canRiichi={actions.canRiichi}
+            canChi={actions.canChi}
+            canPon={actions.canPon}
+            canKan={actions.canKan}
+            canSkip={actions.canSkip}
+            canKyuushu={actions.canKyuushu}
+            onTsumoAgari={declareTsumoAgari}
+            onRon={declareRon}
+            onRiichi={() => {
+              if (selectedTile && actions.riichiTiles.some(t => t.index === selectedTile.index)) {
+                declareRiichi(selectedTile);
+              }
+            }}
+            onChi={() => {
+              if (actions.chiOptions.length > 1) {
+                setShowChiSelector(true);
+              } else if (actions.chiOptions.length === 1) {
+                callChi(actions.chiOptions[0]);
+              }
+            }}
+            onPon={callPon}
+            onKan={() => callKan(actions.kanTiles[0])}
+            onSkip={skipCall}
+            onKyuushu={declareKyuushu}
+          />
           <button
             onClick={handleDiscard}
-            className="px-6 py-3 sm:px-10 sm:py-4 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
-              text-white font-bold text-base sm:text-xl shadow-lg transition-all hover:bg-white/20
+            className="px-6 py-3 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
+              text-white font-bold text-base shadow-lg transition-all hover:bg-white/20
               hover:scale-105 active:scale-95"
           >
             打牌
           </button>
         </div>
+      ) : (
+        <>
+          {!showAgariBoard && <ActionBar
+            canTsumoAgari={actions.canTsumoAgari}
+            canRon={actions.canRon}
+            canRiichi={actions.canRiichi}
+            canChi={actions.canChi}
+            canPon={actions.canPon}
+            canKan={actions.canKan}
+            canSkip={actions.canSkip}
+            canKyuushu={actions.canKyuushu}
+            onTsumoAgari={declareTsumoAgari}
+            onRon={declareRon}
+            onRiichi={() => {
+              if (selectedTile && actions.riichiTiles.some(t => t.index === selectedTile.index)) {
+                declareRiichi(selectedTile);
+              }
+            }}
+            onChi={() => {
+              if (actions.chiOptions.length > 1) {
+                setShowChiSelector(true);
+              } else if (actions.chiOptions.length === 1) {
+                callChi(actions.chiOptions[0]);
+              }
+            }}
+            onPon={callPon}
+            onKan={() => callKan(actions.kanTiles[0])}
+            onSkip={skipCall}
+            onKyuushu={declareKyuushu}
+          />}
+          {showDiscardButton && (
+            <div className="fixed bottom-2 left-2 sm:bottom-6 sm:left-6 z-40">
+              <button
+                onClick={handleDiscard}
+                className="px-6 py-3 sm:px-10 sm:py-4 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
+                  text-white font-bold text-base sm:text-xl shadow-lg transition-all hover:bg-white/20
+                  hover:scale-105 active:scale-95"
+              >
+                打牌
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* テンパイ/フリテンインジケーター（右下） */}
@@ -582,7 +662,7 @@ export const GamePage: React.FC = () => {
       {/* 自分が和了: 動画オーバーレイ（2.5s） */}
       {showAgariVideo && <AgariVideoOverlay />}
 
-      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（2.0s） */}
+      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（ツモ4s / ロン6s） */}
       {showAgariImage && (
         <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}

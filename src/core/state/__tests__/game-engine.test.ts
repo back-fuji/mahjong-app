@@ -214,6 +214,30 @@ describe('processPon', () => {
       expect(result.players[i].isIppatsu).toBe(false);
     }
   });
+
+  it('ポン時に打牌者の捨て牌から鳴かれた牌が除去される', () => {
+    const discardedTile = tile(0, 0); // 1m
+    const players = [
+      makePlayer({ discards: [discardedTile] }, 0), // 打牌者: 1枚捨てた直後
+      makePlayer({}, 1),
+      makePlayer({
+        hand: { closed: [tile(0, 100), tile(0, 101), tile(9, 36)], melds: [], tsumo: undefined },
+      }, 2),
+      makePlayer({}, 3),
+    ];
+
+    const state = baseState({
+      players,
+      phase: 'calling',
+      lastDiscard: { tile: discardedTile, playerIndex: 0 },
+    });
+
+    const result = processPon(state, 2);
+    // 打牌者(0)の捨て牌から鳴かれた牌が消費されている
+    expect(result.players[0].discards).toHaveLength(0);
+    // 鳴き者(2)の副露にその牌が含まれる
+    expect(result.players[2].hand.melds[0].tiles).toContainEqual(discardedTile);
+  });
 });
 
 describe('processChi', () => {
@@ -243,6 +267,28 @@ describe('processChi', () => {
     expect(result.currentPlayer).toBe(1);
     expect(result.players[1].hand.melds.length).toBe(1);
     expect(result.players[1].hand.melds[0].type).toBe(MeldType.Chi);
+  });
+
+  it('チー時に打牌者の捨て牌から鳴かれた牌が除去される', () => {
+    const discardedTile = tile(2, 8); // 3m
+    const players = [
+      makePlayer({ discards: [discardedTile] }, 0),
+      makePlayer({
+        hand: { closed: [tile(0, 100), tile(1, 104), tile(9, 36), tile(10, 40)], melds: [], tsumo: undefined },
+      }, 1),
+      makePlayer({}, 2),
+      makePlayer({}, 3),
+    ];
+
+    const state = baseState({
+      players,
+      phase: 'calling',
+      lastDiscard: { tile: discardedTile, playerIndex: 0 },
+    });
+
+    const result = processChi(state, 1, [0, 1]);
+    expect(result.players[0].discards).toHaveLength(0);
+    expect(result.players[1].hand.melds[0].tiles).toContainEqual(discardedTile);
   });
 });
 
@@ -353,6 +399,28 @@ describe('processMinKan', () => {
     for (let i = 0; i < 4; i++) {
       expect(result.players[i].isIppatsu).toBe(false);
     }
+  });
+
+  it('大明槓時に打牌者の捨て牌から鳴かれた牌が除去される', () => {
+    const discardedTile = tile(0, 0); // 1m
+    const players = [
+      makePlayer({ discards: [discardedTile] }, 0),
+      makePlayer({}, 1),
+      makePlayer({
+        hand: { closed: [tile(0, 100), tile(0, 101), tile(0, 102), tile(9, 36), tile(10, 40)], melds: [], tsumo: undefined },
+      }, 2),
+      makePlayer({}, 3),
+    ];
+
+    const state = baseState({
+      players,
+      phase: 'calling',
+      lastDiscard: { tile: discardedTile, playerIndex: 0 },
+    });
+
+    const result = processMinKan(state, 2);
+    expect(result.players[0].discards).toHaveLength(0);
+    expect(result.players[2].hand.melds[0].tiles).toContainEqual(discardedTile);
   });
 });
 

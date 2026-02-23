@@ -58,7 +58,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const navigate = useNavigate();
   const [selectedTile, setSelectedTile] = React.useState<TileInstance | null>(null);
 
-  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(2.0s) → 結果モーダル
+  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(ツモ4s/ロン6s) → 結果モーダル
   const [showAgariVideo, setShowAgariVideo] = React.useState(false);
   const [showAgariImage, setShowAgariImage] = React.useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = React.useState(false);
@@ -85,8 +85,9 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       } else {
         setShowAgariVideo(false);
         setShowAgariImage(true);
-        const t1 = setTimeout(() => setShowAgariImage(false), 2000);
-        const t2 = setTimeout(() => setShowDetailedResult(true), 2000);
+        const imageDuration = agari.isTsumo ? 4000 : 6000; // ツモ4秒 / ロン6秒（従来の2倍）
+        const t1 = setTimeout(() => setShowAgariImage(false), imageDuration);
+        const t2 = setTimeout(() => setShowDetailedResult(true), imageDuration);
         return () => { clearTimeout(t1); clearTimeout(t2); };
       }
     } else if (gameState.phase === 'round_result') {
@@ -353,7 +354,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       {/* 自分が和了: 動画オーバーレイ（2.5s） */}
       {showAgariVideo && <AgariVideoOverlay />}
 
-      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（2.0s） */}
+      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（ツモ4s / ロン6s） */}
       {showAgariImage && (
         <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}

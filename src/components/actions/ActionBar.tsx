@@ -18,6 +18,8 @@ export interface ActionBarProps {
   onKan: () => void;
   onSkip: () => void;
   onKyuushu: () => void;
+  /** true のとき fixed にせずインライン表示（打牌ボタンと並べる用） */
+  inline?: boolean;
 }
 
 const ActionButton: React.FC<{
@@ -56,11 +58,16 @@ export const ActionBar: React.FC<ActionBarProps> = (props) => {
   const { isMobileLandscape } = useWindowSize();
   const hasAnyAction = props.canTsumoAgari || props.canRon || props.canRiichi ||
     props.canChi || props.canPon || props.canKan || props.canKyuushu;
+  const inline = props.inline === true;
 
   if (!hasAnyAction && !props.canSkip) return null;
 
+  const positionClass = inline
+    ? ''
+    : `fixed ${isMobileLandscape ? 'bottom-2 left-2' : 'bottom-4 left-1/2 -translate-x-1/2'} sm:left-6 sm:translate-x-0`;
+
   return (
-    <div className={`fixed ${isMobileLandscape ? 'bottom-2 left-2' : 'bottom-4 left-1/2 -translate-x-1/2'} sm:left-6 sm:translate-x-0 flex flex-row flex-wrap gap-1.5 sm:gap-2 z-50
+    <div className={`${positionClass} flex flex-row flex-wrap gap-1.5 sm:gap-2 z-50
       bg-black/20 backdrop-blur-md border border-white/15 rounded-2xl ${isMobileLandscape ? 'px-1.5 py-1' : 'px-2 py-2 sm:px-3 sm:py-3'} max-w-[90vw] justify-center`}>
       <ActionButton label="ツモ" imageSrc="/agari/tsumo.svg" onClick={props.onTsumoAgari} borderColor="border-red-400/50" visible={props.canTsumoAgari} compact={isMobileLandscape} />
       <ActionButton label="ロン" imageSrc="/agari/ron.svg" onClick={props.onRon} borderColor="border-red-400/50" visible={props.canRon} compact={isMobileLandscape} />
