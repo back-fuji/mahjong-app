@@ -415,9 +415,18 @@ export const useGameStore = create<GameStore>((set, get) => {
       const state = get().gameState;
       if (!state) return;
 
+      const playerIdx = state.currentPlayer;
+      const player = state.players[playerIdx];
+      const handTiles = [...player.hand.closed, ...(player.hand.tsumo ? [player.hand.tsumo] : [])];
+      const tileInHand = handTiles.find(t => t.index === tile.index);
+      if (!tileInHand) return;
+
+      const riichiTiles = canRiichi(state, playerIdx);
+      if (!riichiTiles.some(t => t.id === tileInHand.id)) return;
+
       soundEngine.playRiichiVoice();
-      replayRecorder.record('riichi', state.currentPlayer, { tileId: tile.id, tileIndex: tile.index });
-      const newState = processRiichi(state, tile);
+      replayRecorder.record('riichi', state.currentPlayer, { tileId: tileInHand.id, tileIndex: tileInHand.index });
+      const newState = processRiichi(state, tileInHand);
       set({ gameState: newState, selectedTile: null });
 
       // リーチ演出(2000ms)が完全に終わるまで待機

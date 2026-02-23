@@ -255,9 +255,9 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
 
   return (
     <div className="flex flex-col items-end gap-2">
-      {/* 選択中の牌を捨てたときの待ち（テンパイが発生するときだけ表示） */}
+      {/* 選択中の牌を捨てたときの待ち（テンパイが発生するときだけ表示・手前に表示） */}
       {showDiscardWaits && discardWaitInfo && (
-        <div className="bg-slate-800/95 backdrop-blur-md border border-amber-400/50 rounded-xl p-3 shadow-lg min-w-[180px]">
+        <div className="relative z-[110] bg-slate-800/95 backdrop-blur-md border border-amber-400/50 rounded-xl p-3 shadow-lg min-w-[180px]">
           <div className="text-amber-300 font-bold text-sm mb-2 text-center">
             この牌を捨てると
           </div>

@@ -294,14 +294,30 @@ export const GamePage: React.FC = () => {
     }
   }, [setSelectedTile]);
 
-  // リーチ後は自動的にツモ牌を選択（自動打牌促進のため）
+  // リーチ後は捨てる牌を選べないので、自分の番が来たら自動で打牌（ツモ切り）
+  const didAutoDiscardRiichiRef = useRef(false);
   useEffect(() => {
     if (!gameState) return;
     const player = gameState.players[humanPlayerIndex];
-    if (player.isRiichi && gameState.phase === 'discard' && player.hand.tsumo) {
-      setSelectedTile(player.hand.tsumo);
+    const isRiichiDiscardTurn =
+      gameState.phase === 'discard' &&
+      gameState.currentPlayer === humanPlayerIndex &&
+      player.isRiichi &&
+      player.hand.tsumo != null;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const tsumoTile = player.hand.tsumo ?? null;
+    if (isRiichiDiscardTurn && !didAutoDiscardRiichiRef.current && tsumoTile) {
+      didAutoDiscardRiichiRef.current = true;
+      timeoutId = setTimeout(() => {
+        discardTile(tsumoTile);
+      }, 120);
+    } else if (!isRiichiDiscardTurn) {
+      didAutoDiscardRiichiRef.current = false;
     }
-  }, [gameState, humanPlayerIndex, setSelectedTile]);
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [gameState, humanPlayerIndex, discardTile]);
 
   // キーボードショートカット
   useEffect(() => {
@@ -377,12 +393,10 @@ export const GamePage: React.FC = () => {
         return;
       }
 
-      // アクションショートカット
+      // アクションショートカット（リーチは選択した牌があるときだけ）
       if (e.key === 'r' && actions.canRiichi) {
-        if (selectedTile && actions.riichiTiles.some(t => t.id === selectedTile.id)) {
+        if (selectedTile && actions.riichiTiles.some(t => t.index === selectedTile.index)) {
           declareRiichi(selectedTile);
-        } else if (actions.riichiTiles.length > 0) {
-          declareRiichi(actions.riichiTiles[0]);
         }
         return;
       }
@@ -501,10 +515,8 @@ export const GamePage: React.FC = () => {
         onTsumoAgari={declareTsumoAgari}
         onRon={declareRon}
         onRiichi={() => {
-          if (selectedTile && actions.riichiTiles.some(t => t.id === selectedTile.id)) {
+          if (selectedTile && actions.riichiTiles.some(t => t.index === selectedTile.index)) {
             declareRiichi(selectedTile);
-          } else if (actions.riichiTiles.length > 0) {
-            declareRiichi(actions.riichiTiles[0]);
           }
         }}
         onChi={() => {
