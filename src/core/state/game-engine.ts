@@ -255,18 +255,21 @@ export function processDiscard(state: GameState, tile: TileInstance): GameState 
       }
     }
 
-    // ポンチェック
-    const ponOpt = getPonOption(otherClosed, tile.id);
-    if (ponOpt) opts.push(ponOpt);
+    // リーチ中はポン・大明槓・チー不可
+    if (!otherPlayer.isRiichi) {
+      // ポンチェック
+      const ponOpt = getPonOption(otherClosed, tile.id);
+      if (ponOpt) opts.push(ponOpt);
 
-    // 大明槓チェック
-    const minkanOpt = getMinKanOption(otherClosed, tile.id);
-    if (minkanOpt) opts.push(minkanOpt);
+      // 大明槓チェック
+      const minkanOpt = getMinKanOption(otherClosed, tile.id);
+      if (minkanOpt) opts.push(minkanOpt);
 
-    // チーチェック（下家のみ）
-    if ((playerIdx + 1) % 4 === i) {
-      const chiOpts = getChiOptions(otherClosed, tile.id);
-      opts.push(...chiOpts);
+      // チーチェック（下家のみ）
+      if ((playerIdx + 1) % 4 === i) {
+        const chiOpts = getChiOptions(otherClosed, tile.id);
+        opts.push(...chiOpts);
+      }
     }
 
     if (opts.length > 0) {

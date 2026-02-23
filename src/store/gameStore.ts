@@ -149,7 +149,8 @@ export const useGameStore = create<GameStore>((set, get) => {
           replayRecorder.record('riichi', newState.currentPlayer, { tileId: riichiDiscard.id });
           newState = processRiichi(newState, riichiDiscard);
           set({ gameState: newState });
-          await delay(300);
+          // リーチ演出(2000ms)が完全に終わるまで待機
+          await delay(2100);
           processCpuCallResponse();
           return;
         }
@@ -419,7 +420,8 @@ export const useGameStore = create<GameStore>((set, get) => {
       const newState = processRiichi(state, tile);
       set({ gameState: newState, selectedTile: null });
 
-      setTimeout(() => processCpuCallResponse(), 300);
+      // リーチ演出(2000ms)が完全に終わるまで待機
+      setTimeout(() => processCpuCallResponse(), 2100);
     },
 
     declareTsumoAgari: () => {

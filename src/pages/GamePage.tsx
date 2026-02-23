@@ -10,6 +10,7 @@ import { ChiSelector } from '../components/actions/ChiSelector.tsx';
 import { CallAnnouncement } from '../components/effects/CallAnnouncement.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { AgariAnnouncement } from '../components/result/AgariAnnouncement.tsx';
+import { AgariImageOverlay } from '../components/result/AgariImageOverlay.tsx';
 import { AchievementToast } from '../components/effects/AchievementToast.tsx';
 import { soundEngine } from '../audio/sound-engine.ts';
 import { autoSave } from '../db/save-load.ts';
@@ -72,12 +73,12 @@ export const GamePage: React.FC = () => {
   const nextRound = useGameStore(s => s.nextRound);
   const actions = useGameStore(s => s.getAvailableActions)();
 
-  // 和了演出: 盤面上手牌公開 → アナウンス → 結果モーダル
+  // 和了演出: 画像表示(1.2s) → 盤面手牌公開(1.0s) → 結果モーダル
+  const [showAgariImage, setShowAgariImage] = useState(false);
+  const [agariIsTsumo, setAgariIsTsumo] = useState(false);
+  const [agariDirection, setAgariDirection] = useState(0);
   const [showAgariBoard, setShowAgariBoard] = useState(false);
-  const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showDetailedResult, setShowDetailedResult] = useState(false);
-  const [announcementText, setAnnouncementText] = useState('');
-  const [agariDirection, setAgariDirection] = useState<number | undefined>(undefined);
 
   // チー候補選択
   const [showChiSelector, setShowChiSelector] = useState(false);
@@ -161,30 +162,30 @@ export const GamePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [riichiKey]);
 
-  // 局結果が和了の場合: アナウンス(2s) → 盤面手牌公開(2s) → 結果モーダル
+  // 局結果が和了の場合: 画像表示(1.2s) → 盤面手牌公開(1.0s) → 結果モーダル
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
-      setAnnouncementText(agari.isTsumo ? 'ツモ' : 'ロン');
+      setAgariIsTsumo(agari.isTsumo);
       // 和了者の相対位置: 0=自分(下), 1=右(下家), 2=上(対面), 3=左(上家)
       setAgariDirection((agari.winner - humanPlayerIndex + 4) % 4);
 
-      // Step 1: まずアナウンス（ロン/ツモ カットイン）を表示
-      setShowAnnouncement(true);
+      // Step 1: 画像表示（1.2s）
+      setShowAgariImage(true);
       setShowAgariBoard(false);
       setShowDetailedResult(false);
 
       const timer1 = setTimeout(() => {
-        // Step 2: アナウンスを消して盤面上で手牌公開
-        setShowAnnouncement(false);
+        // Step 2: 画像消去 → 盤面上で手牌公開（1.0s）
+        setShowAgariImage(false);
         setShowAgariBoard(true);
-      }, 2000);
+      }, 1200);
 
       const timer2 = setTimeout(() => {
         // Step 3: 結果モーダル
         setShowAgariBoard(false);
         setShowDetailedResult(true);
-      }, 4000);
+      }, 2200);
 
       return () => {
         clearTimeout(timer1);
@@ -192,12 +193,12 @@ export const GamePage: React.FC = () => {
       };
     } else if (gameState?.phase === 'round_result') {
       // 流局の場合は直接結果モーダルを表示
+      setShowAgariImage(false);
       setShowAgariBoard(false);
-      setShowAnnouncement(false);
       setShowDetailedResult(true);
     } else {
+      setShowAgariImage(false);
       setShowAgariBoard(false);
-      setShowAnnouncement(false);
       setShowDetailedResult(false);
     }
   }, [gameState?.phase, gameState?.roundResult]);
@@ -518,9 +519,9 @@ export const GamePage: React.FC = () => {
         <AgariAnnouncement text="リーチ" />
       )}
 
-      {/* ツモ/ロン カットイン（方向付きスライドイン、2秒表示） */}
-      {showAnnouncement && (
-        <AgariAnnouncement text={announcementText} direction={agariDirection} />
+      {/* ツモ/ロン 画像オーバーレイ（0.7s） */}
+      {showAgariImage && (
+        <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}
 
       {/* 局結果モーダル（詳細表示） */}

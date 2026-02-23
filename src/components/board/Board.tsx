@@ -166,7 +166,7 @@ export const Board: React.FC<BoardProps> = ({
       </div>
 
       {/* ===== 中段: 左・中央・右 - 全体の1/3 ===== */}
-      <div className={`flex-1 min-h-0 w-full flex items-center overflow-hidden ${isMobileLandscape ? 'justify-between' : 'justify-center gap-2'}`}>
+      <div className={`flex-1 min-h-0 w-full flex items-center  ${isMobileLandscape ? 'justify-between' : 'justify-center gap-2'}`}>
         {/* 左（上家） */}
         <div className="flex flex-row items-center gap-0.5 flex-shrink-0">
           <div className="flex flex-col items-center gap-0.5">

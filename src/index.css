@@ -180,6 +180,15 @@ body {
 .slide-in-left { animation: slide-from-left 2s ease-out forwards; }
 .slide-in-right { animation: slide-from-right 2s ease-out forwards; }
 
+/* ロン・ツモ画像オーバーレイ */
+@keyframes agari-image-appear {
+  0%   { opacity: 0; transform: scale(0.75); }
+  12%  { opacity: 1; transform: scale(1.04); }
+  72%  { opacity: 1; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+.agari-image-appear { animation: agari-image-appear 0.7s ease-out forwards; }
+
 /* === SP横向き強制（ゲーム画面用） === */
 @media (max-width: 768px) and (orientation: portrait) {
   .sp-force-landscape {
