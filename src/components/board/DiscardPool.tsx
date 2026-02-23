@@ -17,7 +17,7 @@ interface DiscardPoolProps {
   highlightTileId?: TileId;
   /** プレイヤーの位置（捨て牌の並び方向を制御） */
   position?: 'bottom' | 'top' | 'left' | 'right';
-  /** ドラ牌IDのセット（緑枠ハイライト用） */
+  /** ドラ牌IDのセット（赤枠ハイライト用） */
   doraIds?: Set<number>;
 }
 

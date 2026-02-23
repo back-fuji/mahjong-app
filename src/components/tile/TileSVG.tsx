@@ -16,7 +16,7 @@ interface TileSVGProps {
   rotation?: -90 | 90 | 180;
   /** 鳴き対象のハイライト（オレンジの光） */
   highlighted?: boolean;
-  /** ドラ牌の常時ハイライト（緑の枠） */
+  /** ドラ牌の常時ハイライト（赤枠） */
   isDora?: boolean;
   className?: string;
 }
@@ -141,10 +141,10 @@ export const TileSVG: React.FC<TileSVGProps> = ({
         <rect x="0" y="0" width={width} height={height} rx="3"
           fill="none" stroke="#f97316" strokeWidth="2" opacity="0.85" />
       )}
-      {/* ドラ牌の常時緑枠ハイライト */}
+      {/* ドラ牌の常時赤枠ハイライト（オレンジと同程度に目立つ） */}
       {isDora && !selected && (
         <rect x="0" y="0" width={width} height={height} rx="3"
-          fill="none" stroke="#22c55e" strokeWidth="2" opacity="0.9" />
+          fill="none" stroke="#ef4444" strokeWidth="2.5" opacity="0.95" />
       )}
       {/* クリック可能インジケーター */}
       {isClickable && !selected && (

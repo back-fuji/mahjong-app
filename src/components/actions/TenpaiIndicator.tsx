@@ -1,14 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { TileId, TileInstance } from '../../core/types/tile.ts';
+import type { TileId, TileInstance, TileCount34 } from '../../core/types/tile.ts';
 import type { GameState } from '../../core/types/game-state.ts';
+import type { Meld } from '../../core/types/meld.ts';
 import { TILE_NAMES } from '../../core/types/tile.ts';
 import { toCount34 } from '../../core/tile/tile-utils.ts';
-import { getWaitingTiles } from '../../core/agari/agari.ts';
+import { checkAgari, getWaitingTiles } from '../../core/agari/agari.ts';
+import { checkYakuRegular, checkYakuChiitoitsu, checkYakuKokushi } from '../../core/yaku/yaku-checker.ts';
 import { TileSVG } from '../tile/TileSVG.tsx';
 
 interface TenpaiIndicatorProps {
   gameState: GameState;
   humanPlayerIndex: number;
+  /** 選択中の捨て候補牌（ある場合、この牌を捨てたときの待ちを表示） */
+  selectedTile?: TileInstance | null;
 }
 
 /**
@@ -48,6 +52,97 @@ function countRemainingTiles(tileId: TileId, gameState: GameState, humanPlayerIn
 }
 
 /**
+ * 待ち牌に対して役があるかチェック（ツモ・ロン両方でチェックし、どちらかで役があればtrue）
+ */
+function hasYakuForWait(tileId: TileId, gameState: GameState, humanPlayerIndex: number): boolean {
+  const player = gameState.players[humanPlayerIndex];
+  const hand = player.hand;
+
+  const counts = toCount34(hand.closed);
+  counts[tileId]++;
+
+  const agari = checkAgari(counts, hand.melds);
+  if (!agari) return false;
+
+  // ツモとロンの両方で役チェック（どちらかで役があればOK）
+  for (const isTsumo of [true, false]) {
+    const ctx = {
+      closedCounts: counts,
+      melds: hand.melds,
+      agariTile: tileId,
+      isTsumo,
+      isMenzen: player.isMenzen,
+      seatWind: player.seatWind,
+      roundWind: gameState.round.bakaze,
+      isRiichi: player.isRiichi,
+      isDoubleRiichi: player.isDoubleRiichi,
+      isIppatsu: player.isIppatsu,
+      isHaitei: false,
+      isHoutei: false,
+      isRinshan: false,
+      isChankan: false,
+      isTenhou: false,
+      isChiihou: false,
+      kuitan: gameState.rules.kuitan,
+    };
+
+    if (agari.type === 'chiitoitsu' && checkYakuChiitoitsu(ctx).length > 0) return true;
+    if (agari.type === 'kokushi' && checkYakuKokushi(ctx).length > 0) return true;
+    if (agari.type === 'regular') {
+      for (const decomp of agari.decompositions) {
+        if (checkYakuRegular(ctx, decomp).length > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * 指定した14枚形（closedCounts）で和了したときに役があるか
+ * @param agariTile 和了牌（ツモ/ロンした牌）
+ */
+function hasYakuForHand(
+  closedCounts: TileCount34,
+  melds: Meld[],
+  agariTile: TileId,
+  gameState: GameState,
+  humanPlayerIndex: number
+): boolean {
+  const player = gameState.players[humanPlayerIndex];
+  const agari = checkAgari(closedCounts, melds);
+  if (!agari) return false;
+  for (const isTsumo of [true, false]) {
+    const ctx = {
+      closedCounts,
+      melds,
+      agariTile,
+      isTsumo,
+      isMenzen: player.isMenzen,
+      seatWind: player.seatWind,
+      roundWind: gameState.round.bakaze,
+      isRiichi: player.isRiichi,
+      isDoubleRiichi: player.isDoubleRiichi,
+      isIppatsu: player.isIppatsu,
+      isHaitei: false,
+      isHoutei: false,
+      isRinshan: false,
+      isChankan: false,
+      isTenhou: false,
+      isChiihou: false,
+      kuitan: gameState.rules.kuitan,
+    };
+    if (agari.type === 'chiitoitsu' && checkYakuChiitoitsu(ctx).length > 0) return true;
+    if (agari.type === 'kokushi' && checkYakuKokushi(ctx).length > 0) return true;
+    if (agari.type === 'regular') {
+      for (const decomp of agari.decompositions) {
+        if (checkYakuRegular(ctx, decomp).length > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * フリテンの原因牌を取得: 自分の待ち牌のうち自分の捨て牌にある牌
  */
 function getFuritenTiles(gameState: GameState, humanPlayerIndex: number): TileId[] {
@@ -77,6 +172,7 @@ function getFuritenTiles(gameState: GameState, humanPlayerIndex: number): TileId
 export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
   gameState,
   humanPlayerIndex,
+  selectedTile = null,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [isPC, setIsPC] = useState(false);
@@ -85,6 +181,34 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
     // タッチデバイスでなければPCとみなす
     setIsPC(!('ontouchstart' in window));
   }, []);
+
+  /** 選択中の牌を捨てたときの待ち（テンパイまじか用） */
+  const discardWaitInfo = useMemo(() => {
+    if (!selectedTile) return null;
+    const player = gameState.players[humanPlayerIndex];
+    const hand = player.hand;
+    const allTiles = [...hand.closed, ...(hand.tsumo ? [hand.tsumo] : [])];
+    if (allTiles.length !== 14) return null;
+    const remaining = allTiles.filter(t => t.index !== selectedTile.index);
+    if (remaining.length !== 13) return null;
+    const counts = toCount34(remaining);
+    const waits = getWaitingTiles(counts, hand.melds);
+    if (waits.length === 0) return { waits: [] as TileId[], withYaku: [] as TileId[] };
+    const withYaku = waits.filter(tileId => {
+      const counts14 = [...counts];
+      counts14[tileId]++;
+      return hasYakuForHand(counts14, hand.melds, tileId, gameState, humanPlayerIndex);
+    });
+    return {
+      waits,
+      withYaku,
+      details: waits.map(tileId => ({
+        tileId,
+        remaining: countRemainingTiles(tileId, gameState, humanPlayerIndex),
+        hasYaku: withYaku.includes(tileId),
+      })),
+    };
+  }, [gameState, humanPlayerIndex, selectedTile]);
 
   const tenpaiInfo = useMemo(() => {
     const player = gameState.players[humanPlayerIndex];
@@ -111,6 +235,7 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
     return waits.map(tileId => ({
       tileId,
       remaining: countRemainingTiles(tileId, gameState, humanPlayerIndex),
+      hasYaku: hasYakuForWait(tileId, gameState, humanPlayerIndex),
     }));
   }, [gameState, humanPlayerIndex]);
 
@@ -121,13 +246,48 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
   const player = gameState.players[humanPlayerIndex];
   const isFuriten = player.isFuriten || player.tempFuriten;
 
-  if (!tenpaiInfo) return null;
+  const totalRemaining = tenpaiInfo ? tenpaiInfo.reduce((sum, w) => sum + w.remaining, 0) : 0;
 
-  const totalRemaining = tenpaiInfo.reduce((sum, w) => sum + w.remaining, 0);
+  if (!tenpaiInfo && !discardWaitInfo) return null;
 
   return (
     <div className="flex flex-col items-end gap-2">
-      {/* テンパイインジケーター */}
+      {/* 選択中の牌を捨てたときの待ち（テンパイまじか・切り替えで待ちが変わる表示） */}
+      {discardWaitInfo && (
+        <div className="bg-slate-800/95 backdrop-blur-md border border-amber-400/50 rounded-xl p-3 shadow-lg min-w-[180px]">
+          <div className="text-amber-300 font-bold text-sm mb-2 text-center">
+            この牌を捨てると
+          </div>
+          {discardWaitInfo.waits.length === 0 ? (
+            <div className="text-gray-400 text-xs text-center py-1">テンパイにならない</div>
+          ) : (
+            <>
+              <div className="text-amber-200/90 text-xs mb-1.5 text-center">待ち</div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {discardWaitInfo.details.map(({ tileId, remaining, hasYaku }) => (
+                  <div key={tileId} className={`flex flex-col items-center gap-0.5 ${!hasYaku ? 'opacity-50' : ''}`}>
+                    <div className="relative">
+                      <TileSVG tileId={tileId} width={28} height={38} />
+                      {!hasYaku && (
+                        <div className="absolute -top-0.5 -right-0.5 bg-gray-600 text-white text-[7px] font-bold px-0.5 py-px rounded leading-none">
+                          無役
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-white/80">{TILE_NAMES[tileId]}</span>
+                    <span className={`text-[10px] font-bold ${!hasYaku ? 'text-gray-400' : remaining > 0 ? 'text-amber-300' : 'text-red-400'}`}>
+                      残{remaining}枚
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* テンパイインジケーター（聴牌時のみ） */}
+      {tenpaiInfo && (
       <div
         className="relative"
         onMouseEnter={() => setShowTooltip(true)}
@@ -163,13 +323,20 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
           >
             <div className="text-orange-300 font-bold text-sm mb-2 text-center">待ち牌</div>
             <div className="flex flex-wrap gap-2 justify-center">
-              {tenpaiInfo.map(({ tileId, remaining }) => (
-                <div key={tileId} className="flex flex-col items-center gap-0.5">
-                  <TileSVG tileId={tileId} width={32} height={44} />
+              {tenpaiInfo.map(({ tileId, remaining, hasYaku }) => (
+                <div key={tileId} className={`flex flex-col items-center gap-0.5 ${!hasYaku ? 'opacity-40' : ''}`}>
+                  <div className="relative">
+                    <TileSVG tileId={tileId} width={32} height={44} />
+                    {!hasYaku && (
+                      <div className="absolute -top-1 -right-1 bg-gray-600 text-white text-[8px] font-bold px-0.5 py-px rounded leading-none">
+                        無役
+                      </div>
+                    )}
+                  </div>
                   <div className="text-xs text-center">
                     <span className="text-white/80">{TILE_NAMES[tileId]}</span>
                   </div>
-                  <div className={`text-xs font-bold ${remaining > 0 ? 'text-orange-300' : 'text-red-400'}`}>
+                  <div className={`text-xs font-bold ${!hasYaku ? 'text-gray-400' : remaining > 0 ? 'text-orange-300' : 'text-red-400'}`}>
                     残{remaining}枚
                   </div>
                 </div>
@@ -183,6 +350,7 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* フリテン表示エリア（右下に表示） */}
       {isFuriten && furitenTiles.length > 0 && (

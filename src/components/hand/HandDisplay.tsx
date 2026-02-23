@@ -22,7 +22,7 @@ interface HandDisplayProps {
   dimmedTileIds?: TileId[];
   /** ドラッグ開始時のコールバック */
   onDragStart?: (tile: TileInstance) => void;
-  /** ドラ牌IDのセット（緑枠ハイライト用） */
+  /** ドラ牌IDのセット（赤枠ハイライト用） */
   doraIds?: Set<number>;
 }
 

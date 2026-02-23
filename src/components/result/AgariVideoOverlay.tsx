@@ -10,20 +10,14 @@ export const AgariVideoOverlay: React.FC = () => {
   }, []);
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.6)' }}
-    >
+    <div className="fixed inset-0 z-[200] w-full h-full overflow-hidden bg-black">
       <video
         ref={videoRef}
         src="/agari/mv1.mp4"
         autoPlay
         muted
         playsInline
-        style={{
-          width: 'min(80vw, 640px)',
-          height: 'auto',
-        }}
+        className="absolute inset-0 w-full h-full object-cover"
       />
     </div>
   );

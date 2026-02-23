@@ -28,19 +28,26 @@ const ActionButton: React.FC<{
   /** オレンジグロー付きハイライト */
   glowOrange?: boolean;
   compact?: boolean;
-}> = ({ label, onClick, borderColor, visible, glowOrange = false, compact = false }) => {
+  /** ラベル代わりに表示する画像のURL（ツモ・ロン用） */
+  imageSrc?: string;
+}> = ({ label, onClick, borderColor, visible, glowOrange = false, compact = false, imageSrc }) => {
   if (!visible) return null;
   return (
     <button
       onClick={onClick}
-      className={`${compact ? 'px-2 py-1 text-xs min-w-[36px]' : 'px-3 py-2 sm:px-4 min-w-[48px] text-sm sm:text-base'} rounded-xl font-bold text-white shadow-lg transition-all
-        hover:scale-105 active:scale-95 backdrop-blur-md border
+      title={label}
+      className={`${compact ? 'px-2 py-1 min-w-[36px]' : 'px-3 py-2 sm:px-4 min-w-[48px]'} rounded-xl font-bold text-white shadow-lg transition-all
+        hover:scale-105 active:scale-95 backdrop-blur-md border flex items-center justify-center
         ${glowOrange
           ? 'bg-orange-500/30 border-orange-400 ring-2 ring-orange-400/60 shadow-orange-500/40 hover:bg-orange-500/40'
           : `bg-white/10 ${borderColor} hover:bg-white/20`
         }`}
     >
-      {label}
+      {imageSrc ? (
+        <img src={imageSrc} alt={label} className={compact ? 'h-5 w-auto' : 'h-6 sm:h-7 w-auto'} />
+      ) : (
+        <span className={compact ? 'text-xs' : 'text-sm sm:text-base'}>{label}</span>
+      )}
     </button>
   );
 };

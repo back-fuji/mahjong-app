@@ -537,7 +537,11 @@ export const GamePage: React.FC = () => {
       {/* テンパイ/フリテンインジケーター（右下） */}
       {gameState.phase !== 'round_result' && gameState.phase !== 'game_result' && (
         <div className="fixed bottom-2 sm:bottom-6 right-2 sm:right-6 z-40">
-          <TenpaiIndicator gameState={gameState} humanPlayerIndex={humanPlayerIndex} />
+          <TenpaiIndicator
+            gameState={gameState}
+            humanPlayerIndex={humanPlayerIndex}
+            selectedTile={selectedTile}
+          />
         </div>
       )}
 
