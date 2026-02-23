@@ -63,7 +63,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
     // 縦並び表示（左右プレイヤー用）
     return (
       <div className="flex flex-col items-center gap-0.5">
-        {/* 副露（上に表示 - 画面からはみ出さないように） */}
+        {/* 副露（上に表示 - 左右プレイヤー向きに手牌と同じ回転を適用） */}
         {hasMelds && (
           <div className="mb-1 flex flex-row items-center gap-1 bg-black/30 rounded px-1 py-0.5">
             {hand.melds.map((meld, mi) => (
@@ -78,6 +78,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
                       height={tileHeight}
                       sideways={!!isCalled}
                       faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                      rotation={tileRotation}
                     />
                   );
                 })}

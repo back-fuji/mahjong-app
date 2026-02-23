@@ -226,6 +226,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
                           height={28}
                           sideways={!!isCalled}
                           faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                          rotation={90}
                         />
                       );
                     })}
@@ -282,6 +283,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
                           height={28}
                           sideways={!!isCalled}
                           faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                          rotation={-90}
                         />
                       );
                     })}
