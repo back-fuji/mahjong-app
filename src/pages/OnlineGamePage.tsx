@@ -58,7 +58,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const navigate = useNavigate();
   const [selectedTile, setSelectedTile] = React.useState<TileInstance | null>(null);
 
-  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(ツモ4s/ロン6s) → 結果モーダル
+  // 和了演出: 自分が和了→動画(2s) / 他者が和了→画像(ツモ3s/ロン4.5s) → 結果モーダル
   const [showAgariVideo, setShowAgariVideo] = React.useState(false);
   const [showAgariImage, setShowAgariImage] = React.useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = React.useState(false);
@@ -79,13 +79,14 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       if (isSelfWin) {
         setShowAgariVideo(true);
         setShowAgariImage(false);
-        const t1 = setTimeout(() => setShowAgariVideo(false), 2500);
-        const t2 = setTimeout(() => setShowDetailedResult(true), 2500);
+        const videoDuration = 2000;
+        const t1 = setTimeout(() => setShowAgariVideo(false), videoDuration);
+        const t2 = setTimeout(() => setShowDetailedResult(true), videoDuration);
         return () => { clearTimeout(t1); clearTimeout(t2); };
       } else {
         setShowAgariVideo(false);
         setShowAgariImage(true);
-        const imageDuration = agari.isTsumo ? 4000 : 6000; // ツモ4秒 / ロン6秒（従来の2倍）
+        const imageDuration = agari.isTsumo ? 3000 : 4500; // ツモ3秒 / ロン4.5秒
         const t1 = setTimeout(() => setShowAgariImage(false), imageDuration);
         const t2 = setTimeout(() => setShowDetailedResult(true), imageDuration);
         return () => { clearTimeout(t1); clearTimeout(t2); };
@@ -353,10 +354,10 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         </div>
       )}
 
-      {/* 自分が和了: 動画オーバーレイ（2.5s） */}
+      {/* 自分が和了: 動画オーバーレイ（2s） */}
       {showAgariVideo && <AgariVideoOverlay />}
 
-      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（ツモ4s / ロン6s） */}
+      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（ツモ3s / ロン4.5s） */}
       {showAgariImage && (
         <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}

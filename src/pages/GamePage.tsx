@@ -83,7 +83,7 @@ export const GamePage: React.FC = () => {
   const showDiscardButton = Boolean(selectedTile && actions.canDiscard);
   const groupBottomLeft = isMobileLandscape && hasActionBar && showDiscardButton;
 
-  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(ツモ4s/ロン6s) → 盤面手牌公開(2.0s) → 結果モーダル
+  // 和了演出: 自分が和了→動画(2s) / 他者が和了→画像(ツモ3s/ロン4.5s) → 盤面手牌公開(2.0s) → 結果モーダル
   const [showAgariVideo, setShowAgariVideo] = useState(false);
   const [showAgariImage, setShowAgariImage] = useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = useState(false);
@@ -174,8 +174,8 @@ export const GamePage: React.FC = () => {
   }, [riichiKey]);
 
   // 局結果が和了の場合:
-  //   自分が和了 → 動画(2.5s) → 盤面手牌公開(2.0s) → 結果モーダル
-  //   他者が和了 → 画像(2.0s) → 盤面手牌公開(2.0s) → 結果モーダル
+  //   自分が和了 → 動画(2s) → 盤面手牌公開(2.0s) → 結果モーダル
+  //   他者が和了 → 画像(ツモ3s/ロン4.5s) → 盤面手牌公開(2.0s) → 結果モーダル
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
@@ -188,30 +188,32 @@ export const GamePage: React.FC = () => {
       const isSelfWin = agari.winner === humanPlayerIndex;
 
       if (isSelfWin) {
-        // 自分が和了: 動画(2.5s) → 手牌公開(2.0s) → 結果モーダル
+        // 自分が和了: 動画(2s) → 手牌公開(2.0s) → 結果モーダル
         setShowAgariVideo(true);
         setShowAgariImage(false);
 
+        const videoDuration = 2000;
+        const boardDuration = 2000;
         const timer1 = setTimeout(() => {
           setShowAgariVideo(false);
           setShowAgariBoard(true);
-        }, 2500);
+        }, videoDuration);
 
         const timer2 = setTimeout(() => {
           setShowAgariBoard(false);
           setShowDetailedResult(true);
-        }, 4500);
+        }, videoDuration + boardDuration);
 
         return () => {
           clearTimeout(timer1);
           clearTimeout(timer2);
         };
       } else {
-        // 他者が和了: ツモ画像(4s) / ロン画像(6s) → 手牌公開(2.0s) → 結果モーダル
+        // 他者が和了: ツモ画像(3s) / ロン画像(4.5s) → 手牌公開(2.0s) → 結果モーダル
         setShowAgariVideo(false);
         setShowAgariImage(true);
 
-        const imageDuration = agari.isTsumo ? 4000 : 6000; // ツモ4秒 / ロン6秒（従来の2倍）
+        const imageDuration = agari.isTsumo ? 3000 : 4500; // ツモ3秒 / ロン4.5秒
         const boardDuration = 2000;
 
         const timer1 = setTimeout(() => {
@@ -659,10 +661,10 @@ export const GamePage: React.FC = () => {
         <AgariAnnouncement text="リーチ" />
       )}
 
-      {/* 自分が和了: 動画オーバーレイ（2.5s） */}
+      {/* 自分が和了: 動画オーバーレイ（2s） */}
       {showAgariVideo && <AgariVideoOverlay />}
 
-      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（ツモ4s / ロン6s） */}
+      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（ツモ3s / ロン4.5s） */}
       {showAgariImage && (
         <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}
