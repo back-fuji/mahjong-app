@@ -146,7 +146,9 @@ export const TenpaiIndicator: React.FC<TenpaiIndicatorProps> = ({
             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
           </svg>
           <span className={`font-bold text-sm ${isFuriten ? 'text-red-300' : 'text-orange-300'}`}>
-            {isFuriten ? 'フリテン' : '聴牌'}
+            {isFuriten ? 'フリテン' : (
+              <ruby>聴牌<rt className="text-[9px] font-normal">てんぱい</rt></ruby>
+            )}
           </span>
           <span className={`text-xs ${isFuriten ? 'text-red-200/70' : 'text-orange-200/70'}`}>
             残{totalRemaining}枚

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobilePortrait } from '../hooks/useIsMobilePortrait.ts';
 import { LandscapePrompt } from '../components/LandscapePrompt.tsx';
+import { DraggableStatusIndicator } from '../components/DraggableStatusIndicator.tsx';
 import { useGameStore } from '../store/gameStore.ts';
 import { Board } from '../components/board/Board.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
@@ -11,6 +12,7 @@ import { CallAnnouncement } from '../components/effects/CallAnnouncement.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { AgariAnnouncement } from '../components/result/AgariAnnouncement.tsx';
 import { AgariImageOverlay } from '../components/result/AgariImageOverlay.tsx';
+import { AgariVideoOverlay } from '../components/result/AgariVideoOverlay.tsx';
 import { AchievementToast } from '../components/effects/AchievementToast.tsx';
 import { soundEngine } from '../audio/sound-engine.ts';
 import { autoSave } from '../db/save-load.ts';
@@ -73,7 +75,8 @@ export const GamePage: React.FC = () => {
   const nextRound = useGameStore(s => s.nextRound);
   const actions = useGameStore(s => s.getAvailableActions)();
 
-  // 和了演出: 画像表示(1.2s) → 盤面手牌公開(1.0s) → 結果モーダル
+  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(2.0s) → 盤面手牌公開(2.0s) → 結果モーダル
+  const [showAgariVideo, setShowAgariVideo] = useState(false);
   const [showAgariImage, setShowAgariImage] = useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = useState(false);
   const [agariDirection, setAgariDirection] = useState(0);
@@ -162,41 +165,67 @@ export const GamePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [riichiKey]);
 
-  // 局結果が和了の場合: 画像表示(2.0s) → 盤面手牌公開(2.0s) → 結果モーダル
+  // 局結果が和了の場合:
+  //   自分が和了 → 動画(2.5s) → 盤面手牌公開(2.0s) → 結果モーダル
+  //   他者が和了 → 画像(2.0s) → 盤面手牌公開(2.0s) → 結果モーダル
   useEffect(() => {
     if (gameState?.phase === 'round_result' && gameState.roundResult?.agari && gameState.roundResult.agari.length > 0) {
       const agari = gameState.roundResult.agari[0];
       setAgariIsTsumo(agari.isTsumo);
       // 和了者の相対位置: 0=自分(下), 1=右(下家), 2=上(対面), 3=左(上家)
       setAgariDirection((agari.winner - humanPlayerIndex + 4) % 4);
-
-      // Step 1: 画像表示（2.0s）
-      setShowAgariImage(true);
       setShowAgariBoard(false);
       setShowDetailedResult(false);
 
-      const timer1 = setTimeout(() => {
-        // Step 2: 画像消去 → 盤面上で手牌公開（2.0s）
+      const isSelfWin = agari.winner === humanPlayerIndex;
+
+      if (isSelfWin) {
+        // 自分が和了: 動画(2.5s) → 手牌公開(2.0s) → 結果モーダル
+        setShowAgariVideo(true);
         setShowAgariImage(false);
-        setShowAgariBoard(true);
-      }, 2000);
 
-      const timer2 = setTimeout(() => {
-        // Step 3: 結果モーダル
-        setShowAgariBoard(false);
-        setShowDetailedResult(true);
-      }, 4000);
+        const timer1 = setTimeout(() => {
+          setShowAgariVideo(false);
+          setShowAgariBoard(true);
+        }, 2500);
 
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
+        const timer2 = setTimeout(() => {
+          setShowAgariBoard(false);
+          setShowDetailedResult(true);
+        }, 4500);
+
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+        };
+      } else {
+        // 他者が和了: 画像(2.0s) → 手牌公開(2.0s) → 結果モーダル
+        setShowAgariVideo(false);
+        setShowAgariImage(true);
+
+        const timer1 = setTimeout(() => {
+          setShowAgariImage(false);
+          setShowAgariBoard(true);
+        }, 2000);
+
+        const timer2 = setTimeout(() => {
+          setShowAgariBoard(false);
+          setShowDetailedResult(true);
+        }, 4000);
+
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+        };
+      }
     } else if (gameState?.phase === 'round_result') {
       // 流局の場合は直接結果モーダルを表示
+      setShowAgariVideo(false);
       setShowAgariImage(false);
       setShowAgariBoard(false);
       setShowDetailedResult(true);
     } else {
+      setShowAgariVideo(false);
       setShowAgariImage(false);
       setShowAgariBoard(false);
       setShowDetailedResult(false);
@@ -238,6 +267,8 @@ export const GamePage: React.FC = () => {
 
   const handleTileClick = useCallback((tile: TileInstance) => {
     if (!gameState) return;
+    // リーチ後は牌選択不可
+    if (gameState.players[humanPlayerIndex].isRiichi) return;
     // 喰い替え禁止牌はクリック不可
     if (actions.kuikaeDisallowedTiles.includes(tile.id)) return;
 
@@ -247,7 +278,7 @@ export const GamePage: React.FC = () => {
     } else {
       setSelectedTile(tile);
     }
-  }, [gameState, selectedTile, discardTile, setSelectedTile, actions.kuikaeDisallowedTiles]);
+  }, [gameState, humanPlayerIndex, selectedTile, discardTile, setSelectedTile, actions.kuikaeDisallowedTiles]);
 
   const handleDiscard = useCallback(() => {
     if (selectedTile && !actions.kuikaeDisallowedTiles.includes(selectedTile.id)) {
@@ -263,6 +294,15 @@ export const GamePage: React.FC = () => {
     }
   }, [setSelectedTile]);
 
+  // リーチ後は自動的にツモ牌を選択（自動打牌促進のため）
+  useEffect(() => {
+    if (!gameState) return;
+    const player = gameState.players[humanPlayerIndex];
+    if (player.isRiichi && gameState.phase === 'discard' && player.hand.tsumo) {
+      setSelectedTile(player.hand.tsumo);
+    }
+  }, [gameState, humanPlayerIndex, setSelectedTile]);
+
   // キーボードショートカット
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -272,20 +312,25 @@ export const GamePage: React.FC = () => {
       const tsumo = player.hand.tsumo;
       const allTiles = tsumo ? [...closed, tsumo] : [...closed];
 
+      // リーチ後は牌選択キーを無効化
+      const isRiichi = player.isRiichi;
+
       // 数字キー(1-9)で手牌選択 (左から番号)
       if (e.key >= '1' && e.key <= '9') {
-        const idx = parseInt(e.key, 10) - 1;
-        if (idx < allTiles.length) {
-          const tile = allTiles[idx];
-          if (!actions.kuikaeDisallowedTiles.includes(tile.id)) {
-            setSelectedTile(tile);
+        if (!isRiichi) {
+          const idx = parseInt(e.key, 10) - 1;
+          if (idx < allTiles.length) {
+            const tile = allTiles[idx];
+            if (!actions.kuikaeDisallowedTiles.includes(tile.id)) {
+              setSelectedTile(tile);
+            }
           }
         }
         return;
       }
       // 0キーで最後の手牌選択
       if (e.key === '0') {
-        if (allTiles.length > 0) {
+        if (!isRiichi && allTiles.length > 0) {
           const tile = allTiles[allTiles.length - 1];
           if (!actions.kuikaeDisallowedTiles.includes(tile.id)) {
             setSelectedTile(tile);
@@ -303,9 +348,10 @@ export const GamePage: React.FC = () => {
         return;
       }
 
-      // 左右矢印: 手牌選択を移動
+      // 左右矢印: 手牌選択を移動（リーチ後は無効）
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
+        if (isRiichi) return;
         const allowedTiles = allTiles.filter(t => !actions.kuikaeDisallowedTiles.includes(t.id));
         if (allowedTiles.length === 0) return;
         if (!selectedTile) {
@@ -410,16 +456,13 @@ export const GamePage: React.FC = () => {
       </div>
 
       {/* ステータスインジケーター
-          SP: 打牌ボタンのすぐ上、左寄せ
+          SP: 打牌ボタンのすぐ上、左寄せ（ドラッグで移動可）
           PC: 画面最左、縦中央 */}
-      <div className="fixed bottom-[100px] left-2 sm:bottom-auto sm:left-3 sm:top-1/2 sm:-translate-y-1/2 z-50 pointer-events-none">
-        <div className={`bg-black/40 backdrop-blur-md border ${phaseInfo.borderColor} px-2 py-1 sm:px-3 sm:py-2 rounded-xl shadow-lg transition-all`}>
-          <div className="text-white/90 font-bold text-xs sm:text-sm text-center whitespace-nowrap">{phaseInfo.message}</div>
-          {phaseInfo.hint && (
-            <div className="text-white/60 text-[9px] sm:text-[10px] text-center max-w-[120px] sm:max-w-[100px] leading-tight">{phaseInfo.hint}</div>
-          )}
-        </div>
-      </div>
+      <DraggableStatusIndicator
+        message={phaseInfo.message}
+        hint={phaseInfo.hint}
+        borderColorClass={phaseInfo.borderColor}
+      />
 
       <Board
         gameState={gameState}
@@ -520,7 +563,10 @@ export const GamePage: React.FC = () => {
         <AgariAnnouncement text="リーチ" />
       )}
 
-      {/* ツモ/ロン 画像オーバーレイ（0.7s） */}
+      {/* 自分が和了: 動画オーバーレイ（2.5s） */}
+      {showAgariVideo && <AgariVideoOverlay />}
+
+      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（2.0s） */}
       {showAgariImage && (
         <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}

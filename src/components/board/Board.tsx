@@ -6,6 +6,7 @@ import { DiscardPool } from './DiscardPool.tsx';
 import { CenterInfo } from './CenterInfo.tsx';
 import { WIND_NAMES } from '../../core/types/player.ts';
 import { useWindowSize } from '../../hooks/useWindowSize.ts';
+import { indicatorToDora } from '../../core/tile/tile-utils.ts';
 
 interface AgariInfo {
   winner: number;
@@ -46,6 +47,15 @@ export const Board: React.FC<BoardProps> = ({
 }) => {
   const { players, round, currentPlayer, doraIndicators } = gameState;
   const windowSize = useWindowSize();
+
+  // ドラ牌IDのセット（doraIndicators から実際のドラを計算）
+  const doraIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const indicator of doraIndicators) {
+      ids.add(indicatorToDora(indicator.id));
+    }
+    return ids;
+  }, [doraIndicators]);
 
   // 相対位置: 0=自分(下), 1=右, 2=対面, 3=左
   const getRelativeIndex = (rel: number) => (humanPlayerIndex + rel) % 4;
@@ -161,6 +171,7 @@ export const Board: React.FC<BoardProps> = ({
             highlightLast={effectiveHighlightLastDiscard === topIdx}
             highlightTileId={selectedTile?.id}
             position="top"
+            doraIds={doraIds}
           />
         </div>
       </div>
@@ -197,6 +208,7 @@ export const Board: React.FC<BoardProps> = ({
               highlightLast={effectiveHighlightLastDiscard === leftIdx}
               highlightTileId={selectedTile?.id}
               position="left"
+              doraIds={doraIds}
             />
           </div>
         </div>
@@ -227,6 +239,7 @@ export const Board: React.FC<BoardProps> = ({
               highlightLast={effectiveHighlightLastDiscard === rightIdx}
               highlightTileId={selectedTile?.id}
               position="right"
+              doraIds={doraIds}
             />
           </div>
           <div className="flex flex-col items-center gap-0.5">
@@ -276,6 +289,7 @@ export const Board: React.FC<BoardProps> = ({
             highlightLast={effectiveHighlightLastDiscard === bottomIdx}
             highlightTileId={selectedTile?.id}
             position="bottom"
+            doraIds={doraIds}
           />
         </div>
         <div className="flex items-center justify-center gap-2 mt-1 px-1">
@@ -290,6 +304,7 @@ export const Board: React.FC<BoardProps> = ({
             highlightTileIds={agariInfo ? undefined : highlightTileIds}
             dimmedTileIds={agariInfo ? undefined : dimmedTileIds}
             onDragStart={agariInfo ? undefined : onDragStart}
+            doraIds={doraIds}
           />
           <div className={`${isMobileLandscape ? 'text-[8px]' : 'text-[10px] sm:text-xs'} text-gray-300 font-bold whitespace-nowrap flex-shrink-0`}>
             <span className={players[bottomIdx].seatWind === 0 ? 'text-red-400' : 'text-yellow-400'}>{WIND_NAMES[players[bottomIdx].seatWind]}</span>

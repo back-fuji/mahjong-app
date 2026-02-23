@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DraggableStatusIndicator } from '../components/DraggableStatusIndicator.tsx';
 import type { TileInstance } from '../core/types/tile.ts';
 import { TileSVG } from '../components/tile/TileSVG.tsx';
 import { DiscardPool } from '../components/board/DiscardPool.tsx';
@@ -8,6 +9,7 @@ import { CenterInfo } from '../components/board/CenterInfo.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { AgariImageOverlay } from '../components/result/AgariImageOverlay.tsx';
+import { AgariVideoOverlay } from '../components/result/AgariVideoOverlay.tsx';
 import { TILE_SHORT } from '../core/types/tile.ts';
 import { MeldType } from '../core/types/meld.ts';
 import type { Meld } from '../core/types/meld.ts';
@@ -56,7 +58,8 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const navigate = useNavigate();
   const [selectedTile, setSelectedTile] = React.useState<TileInstance | null>(null);
 
-  // 和了演出: 画像表示(2.0s) → 結果モーダル
+  // 和了演出: 自分が和了→動画(2.5s) / 他者が和了→画像(2.0s) → 結果モーダル
+  const [showAgariVideo, setShowAgariVideo] = React.useState(false);
   const [showAgariImage, setShowAgariImage] = React.useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = React.useState(false);
   const [agariDirection, setAgariDirection] = React.useState(0);
@@ -69,16 +72,29 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       const myIdx: number = gameState.myIndex ?? 0;
       setAgariIsTsumo(agari.isTsumo);
       setAgariDirection((agari.winner - myIdx + 4) % 4);
-      setShowAgariImage(true);
       setShowDetailedResult(false);
 
-      const t1 = setTimeout(() => setShowAgariImage(false), 2000);
-      const t2 = setTimeout(() => setShowDetailedResult(true), 2000);
-      return () => { clearTimeout(t1); clearTimeout(t2); };
+      const isSelfWin = agari.winner === myIdx;
+
+      if (isSelfWin) {
+        setShowAgariVideo(true);
+        setShowAgariImage(false);
+        const t1 = setTimeout(() => setShowAgariVideo(false), 2500);
+        const t2 = setTimeout(() => setShowDetailedResult(true), 2500);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+      } else {
+        setShowAgariVideo(false);
+        setShowAgariImage(true);
+        const t1 = setTimeout(() => setShowAgariImage(false), 2000);
+        const t2 = setTimeout(() => setShowDetailedResult(true), 2000);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+      }
     } else if (gameState.phase === 'round_result') {
+      setShowAgariVideo(false);
       setShowAgariImage(false);
       setShowDetailedResult(true);
     } else {
+      setShowAgariVideo(false);
       setShowAgariImage(false);
       setShowDetailedResult(false);
     }
@@ -138,16 +154,14 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       </div>
 
       {/* ステータスインジケーター（グラスUI）
-          SP: 打牌ボタンのすぐ上、左寄せ
+          SP: 打牌ボタンのすぐ上、左寄せ（ドラッグで移動可）
           PC: 画面最左、縦中央 */}
-      <div className="fixed bottom-[100px] left-2 sm:bottom-auto sm:left-3 sm:top-1/2 sm:-translate-y-1/2 z-50 pointer-events-none">
-        <div className="bg-black/20 backdrop-blur-md border border-white/20 px-2 py-1 sm:px-6 sm:py-2 rounded-xl shadow-lg transition-all">
-          <div className="text-white/90 font-bold text-xs sm:text-lg text-center whitespace-nowrap">{phaseInfo.message}</div>
-          {phaseInfo.hint && (
-            <div className="text-white/60 text-[9px] sm:text-sm text-center max-w-[120px] sm:max-w-none leading-tight">{phaseInfo.hint}</div>
-          )}
-        </div>
-      </div>
+      <DraggableStatusIndicator
+        message={phaseInfo.message}
+        hint={phaseInfo.hint}
+        borderColorClass="border-white/20"
+        variant="online"
+      />
 
       {/* 上（対面） - 手牌と捨て牌を横並び */}
       <div className="flex flex-col items-center gap-1">
@@ -336,7 +350,10 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         </div>
       )}
 
-      {/* ツモ/ロン 画像オーバーレイ（0.7s） */}
+      {/* 自分が和了: 動画オーバーレイ（2.5s） */}
+      {showAgariVideo && <AgariVideoOverlay />}
+
+      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（2.0s） */}
       {showAgariImage && (
         <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}

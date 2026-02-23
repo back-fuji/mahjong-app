@@ -22,6 +22,8 @@ interface HandDisplayProps {
   dimmedTileIds?: TileId[];
   /** ドラッグ開始時のコールバック */
   onDragStart?: (tile: TileInstance) => void;
+  /** ドラ牌IDのセット（緑枠ハイライト用） */
+  doraIds?: Set<number>;
 }
 
 export const HandDisplay: React.FC<HandDisplayProps> = ({
@@ -37,6 +39,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
   highlightTileIds,
   dimmedTileIds,
   onDragStart,
+  doraIds,
 }) => {
   // 左右プレイヤーの手牌は自分の向きに回転（右=反時計回り90度、左=時計回り90度）
   const tileRotation = sidePosition === 'right' ? -90 as const : sidePosition === 'left' ? 90 as const : undefined;
@@ -134,6 +137,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
                 selected={selectedTile?.index === tile.index}
                 highlighted={!!highlightSet?.has(tile.id)}
                 dimmed={!!dimmedSet?.has(tile.id)}
+                isDora={showTiles && !!doraIds?.has(tile.id)}
                 onClick={isCurrentPlayer && onTileClick && !dimmedSet?.has(tile.id) ? () => onTileClick(tile) : undefined}
               />
             </div>
@@ -153,6 +157,7 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
                   selected={selectedTile?.index === hand.tsumo.index}
                   highlighted={!!highlightSet?.has(hand.tsumo.id)}
                   dimmed={!!dimmedSet?.has(hand.tsumo.id)}
+                  isDora={!!doraIds?.has(hand.tsumo.id)}
                   onClick={isCurrentPlayer && onTileClick && !dimmedSet?.has(hand.tsumo.id) ? () => onTileClick(hand.tsumo!) : undefined}
                 />
               </div>

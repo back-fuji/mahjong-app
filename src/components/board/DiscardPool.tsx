@@ -17,6 +17,8 @@ interface DiscardPoolProps {
   highlightTileId?: TileId;
   /** プレイヤーの位置（捨て牌の並び方向を制御） */
   position?: 'bottom' | 'top' | 'left' | 'right';
+  /** ドラ牌IDのセット（緑枠ハイライト用） */
+  doraIds?: Set<number>;
 }
 
 /** 最後の牌に入場アニメーションを付与するラッパー */
@@ -42,6 +44,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
   highlightLast = false,
   highlightTileId,
   position = 'bottom',
+  doraIds,
 }) => {
   const lastIdx = highlightLast && discards.length > 0 ? discards.length - 1 : -1;
   const riichiTurn = riichiDiscardIndex;
@@ -80,6 +83,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                       height={tileHeight}
                       sideways={isRiichi}
                       highlighted={isHighlighted(tile, globalIdx)}
+                      isDora={doraIds?.has(tile.id)}
                     />
                   );
                 })}
@@ -112,6 +116,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                       height={tileHeight}
                       sideways={isRiichi}
                       highlighted={isHighlighted(tile, globalIdx)}
+                      isDora={doraIds?.has(tile.id)}
                     />
                   );
                 })}
@@ -171,6 +176,7 @@ export const DiscardPool: React.FC<DiscardPoolProps> = ({
                     height={tileHeight}
                     sideways={isRiichi}
                     highlighted={isHighlighted(tile, globalIdx)}
+                    isDora={doraIds?.has(tile.id)}
                   />
                 </AnimatedTileWrapper>
               );
