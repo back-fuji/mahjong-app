@@ -797,17 +797,16 @@ export function advanceRound(state: GameState): GameState {
     }
   }
 
+  // 場風更新（東場 → 南場）
+  if (kyoku >= 4 && bakaze === 0) {
+    bakaze = 1 as Wind;
+    kyoku = 4;
+  }
+
   // ゲーム終了判定
   const maxKyoku = state.rules.gameType === 'tonpu' ? 4 : 8;
   if (kyoku >= maxKyoku) {
-    // 場風更新
-    if (kyoku >= 4 && bakaze === 0) {
-      bakaze = 1 as Wind;
-      kyoku = 4;
-    }
-    if (kyoku >= maxKyoku) {
-      return { ...state, phase: 'game_result' };
-    }
+    return { ...state, phase: 'game_result' };
   }
 
   const newState: GameState = {
