@@ -94,14 +94,15 @@ export function drawRinshan(
   const newRinshanIndex = rinshanIndex - 1;
 
   // 新しいドラ表示牌
+  // doraIndicators[0] = wall[deadWallStart+4], doraIndicators[1] = wall[deadWallStart+6], ...
   const doraPos = deadWallStart + 4 + doraIndicators.length * 2;
   const newDoraIndicators = [...doraIndicators];
   const newUraDoraIndicators = [...uraDoraIndicators];
 
   if (doraPos < wall.length) {
-    newDoraIndicators.push(wall[doraPos - 2]);
-    if (doraPos - 1 < wall.length) {
-      newUraDoraIndicators.push(wall[doraPos - 1]);
+    newDoraIndicators.push(wall[doraPos]);
+    if (doraPos + 1 < wall.length) {
+      newUraDoraIndicators.push(wall[doraPos + 1]);
     }
   }
 

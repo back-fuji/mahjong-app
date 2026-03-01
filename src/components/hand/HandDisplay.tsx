@@ -63,30 +63,6 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
     // 縦並び表示（左右プレイヤー用）
     return (
       <div className="flex flex-col items-center gap-0.5">
-        {/* 副露（上に表示 - 左右プレイヤー向きに手牌と同じ回転を適用） */}
-        {hasMelds && (
-          <div className="mb-1 flex flex-row items-center gap-1 bg-black/30 rounded px-1 py-0.5">
-            {hand.melds.map((meld, mi) => (
-              <div key={mi} className="flex flex-row items-center">
-                {meld.tiles.map((tile, ti) => {
-                  const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
-                  return (
-                    <TileSVG
-                      key={tile.index}
-                      tile={tile}
-                      width={tileWidth}
-                      height={tileHeight}
-                      sideways={!!isCalled}
-                      faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
-                      rotation={tileRotation}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* 門前手牌 */}
         <div className="flex flex-col items-center">
           {hand.closed.map((tile) => (
@@ -115,6 +91,30 @@ export const HandDisplay: React.FC<HandDisplayProps> = ({
               selected={selectedTile?.index === hand.tsumo.index}
               onClick={isCurrentPlayer && onTileClick ? () => onTileClick(hand.tsumo!) : undefined}
             />
+          </div>
+        )}
+
+        {/* 副露（手牌の延長として下に縦並び表示） */}
+        {hasMelds && (
+          <div className="mt-1 flex flex-col items-center gap-1 bg-black/30 rounded px-0.5 py-0.5">
+            {hand.melds.map((meld, mi) => (
+              <div key={mi} className="flex flex-col items-center">
+                {meld.tiles.map((tile, ti) => {
+                  const isCalled = meld.calledTile && tile.index === meld.calledTile.index;
+                  return (
+                    <TileSVG
+                      key={tile.index}
+                      tile={tile}
+                      width={tileWidth}
+                      height={tileHeight}
+                      sideways={!!isCalled}
+                      faceDown={meld.type === MeldType.AnKan && (ti === 0 || ti === 3)}
+                      rotation={tileRotation}
+                    />
+                  );
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>
