@@ -9,7 +9,7 @@ import { CenterInfo } from '../components/board/CenterInfo.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { AgariImageOverlay } from '../components/result/AgariImageOverlay.tsx';
-import { AgariVideoOverlay } from '../components/result/AgariVideoOverlay.tsx';
+import { AgariVideoOverlay, preloadAgariVideo } from '../components/result/AgariVideoOverlay.tsx';
 import { TILE_SHORT } from '../core/types/tile.ts';
 import { MeldType } from '../core/types/meld.ts';
 import type { Meld } from '../core/types/meld.ts';
@@ -64,6 +64,11 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const [agariIsTsumo, setAgariIsTsumo] = React.useState(false);
   const [agariDirection, setAgariDirection] = React.useState(0);
   const [showDetailedResult, setShowDetailedResult] = React.useState(false);
+
+  // 和了動画の事前読み込み（ロン時にすぐ再生するため）
+  React.useEffect(() => {
+    preloadAgariVideo();
+  }, []);
 
   React.useEffect(() => {
     if (!gameState) return;
