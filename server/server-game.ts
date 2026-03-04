@@ -2,17 +2,22 @@ import type { Server } from 'socket.io';
 import type { Room } from './room-manager.ts';
 import type { GameState } from '../src/core/types/game-state.ts';
 import { DEFAULT_RULES } from '../src/core/types/game-state.ts';
-import type { TileInstance, TileId } from '../src/core/types/tile.ts';
+import type { TileId } from '../src/core/types/tile.ts';
 import { MeldType } from '../src/core/types/meld.ts';
+import type { CallOption } from '../src/core/types/meld.ts';
 import {
   initGame, processTsumo, processDiscard, processRiichi,
   processTsumoAgari, processRon, processPon, processChi,
-  processAnKan, processShouMinKan,
+  processAnKan, processShouMinKan, processMinKan,
   checkTsumoAgari, canRiichi, canAnKan, canShouMinKan,
+  canKyuushuKyuhai, processKyuushuKyuhai,
+  checkSuuchariichi, checkSuukaikan,
+  processAbortiveDraw,
+  applyRonSkipFuriten,
   advanceRound,
 } from '../src/core/state/game-engine.ts';
 import { toCount34 } from '../src/core/tile/tile-utils.ts';
-import { checkAgari, getWaitingTiles } from '../src/core/agari/agari.ts';
+import { checkAgari } from '../src/core/agari/agari.ts';
 import { chooseDiscard, shouldCallPon, shouldCallChi, shouldRiichi, shouldTsumoAgari } from '../src/ai/strategy/strategy.ts';
 
 /** サーバー権威型ゲーム管理 */
@@ -98,39 +103,75 @@ export class ServerGame {
 
       case 'pon': {
         if (this.state.phase !== 'calling') return;
-        const player = this.state.players[playerIndex];
-        const discardAfter = chooseDiscard(player.hand.closed, undefined);
-        this.state = processPon(this.state, playerIndex, discardAfter);
+        this.state = processPon(this.state, playerIndex);
         this.broadcastState();
-        this.advanceAfterCall();
+        // state は 'discard' phase。人間プレイヤーは通常の discard アクションで打牌する
         break;
       }
 
       case 'chi': {
         if (this.state.phase !== 'calling') return;
         const tiles = action.tiles as TileId[];
-        const player = this.state.players[playerIndex];
-        const discardAfter = chooseDiscard(player.hand.closed, undefined);
-        this.state = processChi(this.state, playerIndex, tiles, discardAfter);
+        if (!tiles || tiles.length === 0) return;
+        this.state = processChi(this.state, playerIndex, tiles);
         this.broadcastState();
-        this.advanceAfterCall();
+        // state は 'discard' phase。人間プレイヤーは通常の discard アクションで打牌する
         break;
       }
 
       case 'kan': {
-        const tileId = action.tileId as TileId;
-        const ankans = canAnKan(this.state, playerIndex);
-        if (ankans.includes(tileId)) {
-          this.state = processAnKan(this.state, tileId);
+        const s = this.state;
+        if (s.phase === 'calling') {
+          // 大明槓（calling フェーズ）
+          const opts = s.callOptions?.get(playerIndex);
+          if (!opts?.some(o => o.type === MeldType.MinKan)) return;
+          this.state = processMinKan(s, playerIndex);
+          if (checkSuukaikan(this.state)) {
+            this.state = processAbortiveDraw(this.state, 'suukaikan');
+            this.broadcastState();
+            return;
+          }
+          this.broadcastState();
+          this.processIfCpu();
+          break;
+        }
+        // discard フェーズ: 暗槓 or 加槓
+        if (s.phase !== 'discard' || s.currentPlayer !== playerIndex) return;
+        const tileId = action.tileId as TileId | undefined;
+        const ankans = canAnKan(s, playerIndex);
+        const shouminkan = canShouMinKan(s, playerIndex);
+        const effectiveTileId = tileId ?? ankans[0] ?? shouminkan[0];
+        if (effectiveTileId === undefined) return;
+        if (ankans.includes(effectiveTileId)) {
+          this.state = processAnKan(s, effectiveTileId);
         } else {
-          this.state = processShouMinKan(this.state, tileId);
+          this.state = processShouMinKan(s, effectiveTileId);
+        }
+        if (checkSuukaikan(this.state)) {
+          this.state = processAbortiveDraw(this.state, 'suukaikan');
+          this.broadcastState();
+          return;
         }
         this.broadcastState();
         this.processIfCpu();
         break;
       }
 
+      case 'kyuushu': {
+        if (this.state.phase !== 'discard' || this.state.currentPlayer !== playerIndex) return;
+        if (!canKyuushuKyuhai(this.state, playerIndex)) return;
+        this.state = processKyuushuKyuhai(this.state);
+        this.broadcastState();
+        break;
+      }
+
       case 'skip_call': {
+        if (this.state.phase !== 'calling') return;
+        // ロンを見逃した場合はフリテンを設定
+        const humanOpts = this.state.callOptions?.get(playerIndex);
+        if (humanOpts?.some(o => o.type === 'ron')) {
+          this.state = applyRonSkipFuriten(this.state, playerIndex);
+        }
         this.pendingCallResponses.set(playerIndex, true);
         this.checkAllCallResponses();
         break;
@@ -167,6 +208,26 @@ export class ServerGame {
   /** プレイヤーに見せるべき情報だけフィルタ */
   private filterStateForPlayer(playerIndex: number): unknown {
     const s = this.state;
+
+    // calling フェーズ: chi候補とkan候補を送信
+    let chiOptions: CallOption[] = [];
+    let kanTiles: TileId[] = [];
+
+    if (s.phase === 'calling' && s.callOptions) {
+      const opts = s.callOptions.get(playerIndex);
+      if (opts) {
+        chiOptions = opts.filter(o => o.type === MeldType.Chi);
+        const minkanOpt = opts.find(o => o.type === MeldType.MinKan);
+        if (minkanOpt) kanTiles = [minkanOpt.calledTile];
+      }
+    }
+
+    if (s.phase === 'discard' && s.currentPlayer === playerIndex) {
+      const ankans = canAnKan(s, playerIndex);
+      const shouminkan = canShouMinKan(s, playerIndex);
+      kanTiles = [...ankans, ...shouminkan];
+    }
+
     return {
       players: s.players.map((p, i) => ({
         id: p.id,
@@ -174,6 +235,7 @@ export class ServerGame {
         score: p.score,
         seatWind: p.seatWind,
         isRiichi: p.isRiichi,
+        riichiDiscardIndex: p.riichiDiscardIndex,
         discards: p.discards,
         melds: p.hand.melds,
         // 自分の手牌だけ見せる
@@ -183,6 +245,7 @@ export class ServerGame {
         isMenzen: p.isMenzen,
         isHuman: p.isHuman,
         connected: p.connected,
+        kuikaeDisallowedTiles: i === playerIndex ? p.kuikaeDisallowedTiles : undefined,
       })),
       phase: s.phase,
       currentPlayer: s.currentPlayer,
@@ -194,6 +257,8 @@ export class ServerGame {
       myIndex: playerIndex,
       // 利用可能なアクション
       availableActions: this.getAvailableActionsForPlayer(playerIndex),
+      chiOptions,
+      kanTiles,
     };
   }
 
@@ -206,6 +271,7 @@ export class ServerGame {
       if (checkTsumoAgari(s)) actions.push('tsumo_agari');
       if (canRiichi(s, playerIndex).length > 0) actions.push('riichi');
       if (canAnKan(s, playerIndex).length > 0 || canShouMinKan(s, playerIndex).length > 0) actions.push('kan');
+      if (canKyuushuKyuhai(s, playerIndex)) actions.push('kyuushu');
     }
 
     if (s.phase === 'calling' && s.callOptions) {
@@ -287,7 +353,7 @@ export class ServerGame {
     }
 
     if (s.phase === 'discard' && this.cpuMode[s.currentPlayer]) {
-      // CPU打牌フェーズ（槓後等）
+      // CPU打牌フェーズ（槓後・ポン後・チー後等）
       const player = s.players[s.currentPlayer];
       if (checkTsumoAgari(s) && shouldTsumoAgari()) {
         this.state = processTsumoAgari(s);
@@ -343,11 +409,23 @@ export class ServerGame {
       // CPU ポンチェック
       const ponOpt = opts.find(o => o.type === MeldType.Pon);
       if (ponOpt && shouldCallPon(ponOpt, closedCounts)) {
-        const da = chooseDiscard(player.hand.closed, undefined);
-        this.state = processPon(this.state, idx, da);
+        this.state = processPon(this.state, idx);
         this.broadcastState();
         this.advanceAfterCall();
         return;
+      }
+
+      // CPU チーチェック（上家からのみ）
+      const discardPlayerIdx = this.state.lastDiscard?.playerIndex;
+      const isKamicha = discardPlayerIdx !== undefined && (discardPlayerIdx + 1) % 4 === idx;
+      if (isKamicha) {
+        const chiOpts = opts.filter(o => o.type === MeldType.Chi);
+        if (chiOpts.length > 0 && shouldCallChi(chiOpts[0], closedCounts)) {
+          this.state = processChi(this.state, idx, chiOpts[0].tiles);
+          this.broadcastState();
+          this.advanceAfterCall();
+          return;
+        }
       }
 
       // CPUスキップ
@@ -363,6 +441,13 @@ export class ServerGame {
 
     for (const [idx] of this.state.callOptions) {
       if (!this.pendingCallResponses.has(idx)) return; // まだ応答待ち
+    }
+
+    // 四家立直チェック
+    if (checkSuuchariichi(this.state)) {
+      this.state = processAbortiveDraw(this.state, 'suuchariichi');
+      this.broadcastState();
+      return;
     }
 
     // 全員スキップ
@@ -384,8 +469,18 @@ export class ServerGame {
   }
 
   private advanceAfterCall() {
-    if (this.state.phase === 'tsumo') {
-      if (this.cpuMode[this.state.currentPlayer]) {
+    const s = this.state;
+    // ポン/チー後は 'discard' phase になる
+    if (s.phase === 'discard' && this.cpuMode[s.currentPlayer]) {
+      // CPU が鳴いた後の打牌処理
+      this.processIfCpu();
+      return;
+    }
+    // 人間が鳴いた後は broadcastState 済みなのでそのまま待つ
+    if (s.phase === 'discard') return;
+
+    if (s.phase === 'tsumo') {
+      if (this.cpuMode[s.currentPlayer]) {
         this.processIfCpu();
       } else {
         this.state = processTsumo(this.state);

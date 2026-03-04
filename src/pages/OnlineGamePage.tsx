@@ -2,51 +2,55 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DraggableStatusIndicator } from '../components/DraggableStatusIndicator.tsx';
 import type { TileInstance } from '../core/types/tile.ts';
+import type { CallOption } from '../core/types/meld.ts';
 import { TileSVG } from '../components/tile/TileSVG.tsx';
 import { DiscardPool } from '../components/board/DiscardPool.tsx';
 import { HandDisplay } from '../components/hand/HandDisplay.tsx';
 import { CenterInfo } from '../components/board/CenterInfo.tsx';
 import { ActionBar } from '../components/actions/ActionBar.tsx';
+import { ChiSelector } from '../components/actions/ChiSelector.tsx';
 import { RoundResultModal } from '../components/result/RoundResultModal.tsx';
 import { AgariImageOverlay } from '../components/result/AgariImageOverlay.tsx';
-import { AgariVideoOverlay } from '../components/result/AgariVideoOverlay.tsx';
+import { AgariVideoOverlay, preloadAgariVideo } from '../components/result/AgariVideoOverlay.tsx';
+import { AgariAnnouncement } from '../components/result/AgariAnnouncement.tsx';
+import { CallAnnouncement } from '../components/effects/CallAnnouncement.tsx';
 import { TILE_SHORT } from '../core/types/tile.ts';
 import { MeldType } from '../core/types/meld.ts';
 import type { Meld } from '../core/types/meld.ts';
 
 /** フェーズに応じた状態メッセージ */
 function getPhaseMessage(
-  phase: string, 
-  isMyTurn: boolean, 
+  phase: string,
+  isMyTurn: boolean,
   selectedTile: TileInstance | null,
   canDiscard: boolean,
   canCall: boolean
-): { message: string; hint: string; color: string } {
+): { message: string; hint: string; borderColor: string } {
   if (phase === 'round_result') {
-    return { message: '局終了', hint: '', color: 'bg-purple-600' };
+    return { message: '局終了', hint: '', borderColor: 'border-purple-400/60' };
   }
-  
+
   if (!isMyTurn && !canCall) {
-    return { message: '相手の番', hint: 'お待ちください...', color: 'bg-gray-600' };
+    return { message: '相手の番', hint: 'お待ちください...', borderColor: 'border-gray-400/40' };
   }
 
   if (canCall) {
-    return { message: '鳴きチャンス', hint: 'ポン・チー・カンまたはスキップ', color: 'bg-blue-600' };
+    return { message: '鳴きチャンス', hint: 'ポン・チー・カンまたはスキップ', borderColor: 'border-blue-400/60' };
   }
 
   if (canDiscard) {
     if (selectedTile) {
       const tileName = TILE_SHORT[selectedTile.id] || '?';
-      return { 
-        message: `選択中: ${tileName}`, 
-        hint: '打牌ボタンで捨てる / 他の牌をクリックで変更', 
-        color: 'bg-amber-600' 
+      return {
+        message: `選択中: ${tileName}`,
+        hint: '打牌ボタンで捨てる / 他の牌をクリックで変更',
+        borderColor: 'border-amber-400/60'
       };
     }
-    return { message: 'あなたの番', hint: '捨てる牌を選んでください', color: 'bg-green-600' };
+    return { message: 'あなたの番', hint: '捨てる牌を選んでください', borderColor: 'border-green-400/60' };
   }
 
-  return { message: '処理中...', hint: '', color: 'bg-gray-600' };
+  return { message: '処理中...', hint: '', borderColor: 'border-gray-400/40' };
 }
 
 interface OnlineGamePageProps {
@@ -57,14 +61,33 @@ interface OnlineGamePageProps {
 export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendAction }) => {
   const navigate = useNavigate();
   const [selectedTile, setSelectedTile] = React.useState<TileInstance | null>(null);
+  const [showChiSelector, setShowChiSelector] = React.useState(false);
 
-  // 和了演出: 自分が和了→動画(2s) / 他者が和了→画像(ツモ3s/ロン4.5s) → 結果モーダル
+  // 和了演出
   const [showAgariVideo, setShowAgariVideo] = React.useState(false);
   const [showAgariImage, setShowAgariImage] = React.useState(false);
   const [agariIsTsumo, setAgariIsTsumo] = React.useState(false);
   const [agariDirection, setAgariDirection] = React.useState(0);
   const [showDetailedResult, setShowDetailedResult] = React.useState(false);
 
+  // 鳴き演出
+  const [callAnnouncementText, setCallAnnouncementText] = React.useState<string | null>(null);
+  const prevMeldCountsRef = React.useRef<number[]>([]);
+
+  // リーチ演出
+  const [showRiichiAnnouncement, setShowRiichiAnnouncement] = React.useState(false);
+  const prevRiichiRef = React.useRef<boolean[]>([]);
+  const riichiTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // リーチ後自動ツモ切り（二重実行防止）
+  const didAutoDiscardRiichiRef = React.useRef(false);
+
+  // 和了動画の事前読み込み
+  React.useEffect(() => {
+    preloadAgariVideo();
+  }, []);
+
+  // 和了演出
   React.useEffect(() => {
     if (!gameState) return;
     if (gameState.phase === 'round_result' && gameState.roundResult?.agari?.length > 0) {
@@ -75,18 +98,16 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
       setShowDetailedResult(false);
 
       const isSelfWin = agari.winner === myIdx;
-
       if (isSelfWin) {
         setShowAgariVideo(true);
         setShowAgariImage(false);
-        const videoDuration = 2000;
-        const t1 = setTimeout(() => setShowAgariVideo(false), videoDuration);
-        const t2 = setTimeout(() => setShowDetailedResult(true), videoDuration);
+        const t1 = setTimeout(() => setShowAgariVideo(false), 2000);
+        const t2 = setTimeout(() => setShowDetailedResult(true), 2000);
         return () => { clearTimeout(t1); clearTimeout(t2); };
       } else {
         setShowAgariVideo(false);
         setShowAgariImage(true);
-        const imageDuration = agari.isTsumo ? 3000 : 4500; // ツモ3秒 / ロン4.5秒
+        const imageDuration = agari.isTsumo ? 3000 : 4500;
         const t1 = setTimeout(() => setShowAgariImage(false), imageDuration);
         const t2 = setTimeout(() => setShowDetailedResult(true), imageDuration);
         return () => { clearTimeout(t1); clearTimeout(t2); };
@@ -102,10 +123,94 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
     }
   }, [gameState?.phase, gameState?.roundResult]);
 
+  // フェーズ変化時にChiSelectorを閉じる
+  React.useEffect(() => {
+    setShowChiSelector(false);
+  }, [gameState?.phase]);
+
+  // 鳴き演出（メルド数の変化を検知）
+  const meldKey = gameState?.players?.map((p: any) => p.melds?.length ?? 0).join(',') ?? '';
+  React.useEffect(() => {
+    if (!gameState?.players) return;
+    const currentCounts = gameState.players.map((p: any) => p.melds?.length ?? 0);
+    const prevCounts = prevMeldCountsRef.current;
+    prevMeldCountsRef.current = currentCounts;
+
+    if (prevCounts.length !== currentCounts.length) return;
+    for (let i = 0; i < currentCounts.length; i++) {
+      if (currentCounts[i] > prevCounts[i]) {
+        const melds: Meld[] = gameState.players[i].melds ?? [];
+        const lastMeld = melds[melds.length - 1];
+        if (lastMeld) {
+          const callName = lastMeld.type === 'chi' ? 'チー'
+            : lastMeld.type === 'pon' ? 'ポン'
+            : (lastMeld.type === 'minkan' || lastMeld.type === 'ankan' || lastMeld.type === 'shouminkan') ? 'カン'
+            : null;
+          if (callName) {
+            setCallAnnouncementText(callName);
+            setTimeout(() => setCallAnnouncementText(null), 800);
+          }
+        }
+        break;
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meldKey]);
+
+  // リーチ演出（リーチ状態変化を検知）
+  const riichiKey = gameState?.players?.map((p: any) => p.isRiichi ? '1' : '0').join('') ?? '';
+  React.useEffect(() => {
+    if (!gameState?.players) return;
+    const currentRiichi = gameState.players.map((p: any) => !!p.isRiichi);
+    const prevRiichi = prevRiichiRef.current;
+    prevRiichiRef.current = currentRiichi;
+
+    if (prevRiichi.length === 4) {
+      for (let i = 0; i < 4; i++) {
+        if (currentRiichi[i] && !prevRiichi[i]) {
+          queueMicrotask(() => {
+            setShowRiichiAnnouncement(true);
+            if (riichiTimerRef.current) clearTimeout(riichiTimerRef.current);
+            riichiTimerRef.current = setTimeout(() => setShowRiichiAnnouncement(false), 2000);
+          });
+          return;
+        }
+      }
+    }
+    return () => {
+      if (riichiTimerRef.current) clearTimeout(riichiTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [riichiKey]);
+
+  // リーチ後自動ツモ切り
+  React.useEffect(() => {
+    if (!gameState) return;
+    const myIdx: number = gameState.myIndex ?? 0;
+    const player = gameState.players?.[myIdx];
+    const isRiichiDiscardTurn =
+      gameState.phase === 'discard' &&
+      gameState.currentPlayer === myIdx &&
+      player?.isRiichi &&
+      player?.tsumo != null;
+
+    if (isRiichiDiscardTurn && !didAutoDiscardRiichiRef.current && player?.tsumo) {
+      didAutoDiscardRiichiRef.current = true;
+      const timer = setTimeout(() => {
+        sendAction({ type: 'discard', tileIndex: player.tsumo.index });
+      }, 120);
+      return () => clearTimeout(timer);
+    } else if (!isRiichiDiscardTurn) {
+      didAutoDiscardRiichiRef.current = false;
+    }
+  }, [gameState?.phase, gameState?.currentPlayer, gameState?.myIndex, sendAction]);
+
   if (!gameState) return null;
 
   const myIndex: number = gameState.myIndex;
   const actions: string[] = gameState.availableActions || [];
+  const chiOptions: CallOption[] = gameState.chiOptions || [];
+  const kanTiles: number[] = gameState.kanTiles || [];
   const players = gameState.players;
   const round = gameState.round;
 
@@ -116,6 +221,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const leftIdx = getRelativeIndex(3);
 
   const myPlayer = players[myIndex];
+  const kuikaeDisallowedTiles: number[] = myPlayer.kuikaeDisallowedTiles || [];
   const myHand = {
     closed: myPlayer.closed || [],
     melds: myPlayer.melds || [],
@@ -123,12 +229,38 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   };
 
   const handleTileClick = (tile: TileInstance) => {
+    if (kuikaeDisallowedTiles.includes(tile.id)) return;
     if (selectedTile?.index === tile.index) {
       sendAction({ type: 'discard', tileIndex: tile.index });
       setSelectedTile(null);
     } else {
       setSelectedTile(tile);
     }
+  };
+
+  const handleBackgroundClick = (e: React.MouseEvent) => {
+    const target = e.target as Element;
+    if (!target.closest('[data-interactive-tile]') && !target.closest('button')) {
+      setSelectedTile(null);
+    }
+  };
+
+  const handleChi = () => {
+    if (chiOptions.length === 0) return;
+    if (chiOptions.length === 1) {
+      sendAction({ type: 'chi', tiles: chiOptions[0].tiles });
+    } else {
+      setShowChiSelector(true);
+    }
+  };
+
+  const handleChiSelect = (option: CallOption) => {
+    setShowChiSelector(false);
+    sendAction({ type: 'chi', tiles: option.tiles });
+  };
+
+  const handleKan = () => {
+    sendAction({ type: 'kan', tileId: kanTiles[0] });
   };
 
   // ステータス計算
@@ -138,9 +270,12 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
   const phaseInfo = getPhaseMessage(gameState.phase, isMyTurn, selectedTile, canDiscard, canCall);
 
   return (
-    <div className="w-full h-[100dvh] bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none sp-force-landscape">
-      {/* ホームボタン（右上） */}
-      <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50">
+    <div
+      className="w-full h-[100dvh] bg-green-900 overflow-hidden relative flex flex-col items-center justify-between p-4 select-none sp-force-landscape"
+      onClick={handleBackgroundClick}
+    >
+      {/* ホームボタン・ヘルプ・役一覧ボタン（右上） */}
+      <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 flex gap-1">
         <button
           onClick={() => {
             if (window.confirm('ホームに戻りますか？（対局は中断されます）')) {
@@ -153,15 +288,21 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         >
           &#x2302;
         </button>
+        <button
+          onClick={() => navigate('/yaku')}
+          className="w-8 h-8 sm:w-9 sm:h-9 bg-black/30 backdrop-blur-md border border-white/20 rounded-full
+            text-white/70 hover:text-white hover:bg-black/50 transition-all text-[10px] sm:text-xs font-bold"
+          title="役一覧"
+        >
+          役
+        </button>
       </div>
 
-      {/* ステータスインジケーター（グラスUI）
-          SP: 打牌ボタンのすぐ上、左寄せ（ドラッグで移動可）
-          PC: 画面最左、縦中央 */}
+      {/* ステータスインジケーター */}
       <DraggableStatusIndicator
         message={phaseInfo.message}
         hint={phaseInfo.hint}
-        borderColorClass="border-white/20"
+        borderColorClass={phaseInfo.borderColor}
         variant="online"
       />
 
@@ -197,9 +338,10 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         </div>
         <DiscardPool
           discards={players[topIdx].discards}
-          riichiDiscardIndex={-1}
+          riichiDiscardIndex={players[topIdx].riichiDiscardIndex ?? -1}
           tileWidth={32}
           tileHeight={44}
+          position="top"
         />
       </div>
 
@@ -236,11 +378,11 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
               </div>
             )}
           </div>
-          <DiscardPool 
-            discards={players[leftIdx].discards} 
-            riichiDiscardIndex={-1} 
-            tileWidth={28} 
-            tileHeight={38} 
+          <DiscardPool
+            discards={players[leftIdx].discards}
+            riichiDiscardIndex={players[leftIdx].riichiDiscardIndex ?? -1}
+            tileWidth={28}
+            tileHeight={38}
             position="left"
           />
         </div>
@@ -259,7 +401,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         <div className="flex flex-row items-center gap-1">
           <DiscardPool
             discards={players[rightIdx].discards}
-            riichiDiscardIndex={-1}
+            riichiDiscardIndex={players[rightIdx].riichiDiscardIndex ?? -1}
             tileWidth={28}
             tileHeight={38}
             position="right"
@@ -298,11 +440,11 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
 
       {/* 下（自分） - 捨て牌と手牌 */}
       <div className="flex flex-col items-center gap-1">
-        <DiscardPool 
-          discards={players[bottomIdx].discards} 
-          riichiDiscardIndex={-1} 
-          tileWidth={36} 
-          tileHeight={50} 
+        <DiscardPool
+          discards={players[bottomIdx].discards}
+          riichiDiscardIndex={players[bottomIdx].riichiDiscardIndex ?? -1}
+          tileWidth={36}
+          tileHeight={50}
         />
         <HandDisplay
           hand={myHand}
@@ -312,6 +454,7 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
           tileWidth={52}
           tileHeight={72}
           showTiles={true}
+          dimmedTileIds={kuikaeDisallowedTiles}
         />
       </div>
 
@@ -330,20 +473,31 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         onRiichi={() => {
           if (selectedTile) sendAction({ type: 'riichi', tileIndex: selectedTile.index });
         }}
-        onChi={() => sendAction({ type: 'chi', tiles: [] })}
+        onChi={handleChi}
         onPon={() => sendAction({ type: 'pon' })}
-        onKan={() => sendAction({ type: 'kan' })}
+        onKan={handleKan}
         onSkip={() => sendAction({ type: 'skip_call' })}
         onKyuushu={() => sendAction({ type: 'kyuushu' })}
       />
+
+      {/* チー候補選択ポップアップ */}
+      {showChiSelector && chiOptions.length > 1 && (
+        <ChiSelector
+          options={chiOptions}
+          onSelect={handleChiSelect}
+          onCancel={() => setShowChiSelector(false)}
+        />
+      )}
 
       {/* 打牌ボタン - 左下グラスUI */}
       {selectedTile && actions.includes('discard') && (
         <div className="fixed bottom-2 left-2 sm:bottom-6 sm:left-6 z-40">
           <button
             onClick={() => {
-              sendAction({ type: 'discard', tileIndex: selectedTile.index });
-              setSelectedTile(null);
+              if (!kuikaeDisallowedTiles.includes(selectedTile.id)) {
+                sendAction({ type: 'discard', tileIndex: selectedTile.index });
+                setSelectedTile(null);
+              }
             }}
             className="px-6 py-3 sm:px-10 sm:py-4 bg-white/10 backdrop-blur-md border border-orange-400/50 rounded-2xl
               text-white font-bold text-base sm:text-xl shadow-lg transition-all hover:bg-white/20
@@ -354,15 +508,25 @@ export const OnlineGamePage: React.FC<OnlineGamePageProps> = ({ gameState, sendA
         </div>
       )}
 
+      {/* 鳴き演出（ポン/チー/カン） */}
+      {callAnnouncementText && (
+        <CallAnnouncement text={callAnnouncementText} />
+      )}
+
+      {/* リーチカットイン */}
+      {showRiichiAnnouncement && (
+        <AgariAnnouncement text="リーチ" />
+      )}
+
       {/* 自分が和了: 動画オーバーレイ（2s） */}
       {showAgariVideo && <AgariVideoOverlay />}
 
-      {/* 他者が和了: ツモ/ロン 画像オーバーレイ（ツモ3s / ロン4.5s） */}
+      {/* 他者が和了: ツモ/ロン 画像オーバーレイ */}
       {showAgariImage && (
         <AgariImageOverlay isTsumo={agariIsTsumo} direction={agariDirection} />
       )}
 
-      {/* 局結果モーダル（画像消去後0.5s経過してから表示） */}
+      {/* 局結果モーダル */}
       {showDetailedResult && gameState.roundResult && (
         <RoundResultModal
           result={gameState.roundResult}
