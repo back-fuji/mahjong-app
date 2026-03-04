@@ -889,7 +889,11 @@ function advanceToNextPlayer(state: GameState, players: Player[], fromIdx?: numb
   };
 }
 
-/** リーチ可能かチェック */
+/**
+ * リーチ可能かチェック
+ * 条件: 門前・未リーチ・1000点以上・テンパイ（1枚捨てて聴牌になる捨て牌が存在）
+ * @returns リーチ宣言として捨て可能な牌のリスト（同じ牌種は1枚のみ）
+ */
 export function canRiichi(state: GameState, playerIdx: number): TileInstance[] {
   const player = state.players[playerIdx];
   if (!player.isMenzen || player.isRiichi || player.score < 1000) return [];
